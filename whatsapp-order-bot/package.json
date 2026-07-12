@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-order-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Webhook server that logs incoming WhatsApp Cloud API customer messages as rows in a Google Sheet, with optional AI field extraction.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.32.1"
+  }
+}
