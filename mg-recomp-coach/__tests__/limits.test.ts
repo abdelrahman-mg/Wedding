@@ -1,6 +1,7 @@
 import { ALL_EXERCISES, altDisplayName } from '../src/data/sessions';
-import { checkBaseKcal, checkCardioAdjust, checkExerciseSafety, checkKcalAdjust, checkProtein, checkStepsAdjust, containsForbiddenAdvice, type LimitCtx } from '../src/engine/limits';
+import { checkBaseKcal, checkCardioAdjust, checkExerciseSafety, checkKcalAdjust, checkProtein, checkStepsAdjust, containsForbiddenAdvice, validateChange, type LimitCtx } from '../src/engine/limits';
 import { defaultData, migrate, SCHEMA_VERSION } from '../src/engine/defaults';
+import { parseChange } from '../src/services/aiCoach';
 
 const ctx: LimitCtx = { planAvgKcal: 1956, doctorCleared: false, stepsBase: 10000, cardioBase: 35 };
 
@@ -86,5 +87,29 @@ describe('migrations', () => {
 
   test('garbage input gives defaults', () => {
     expect(migrate(null).profile.name).toBe('MG');
+  });
+});
+
+describe('validateChange', () => {
+  const vctx = { ...ctx, kcalAdjust: 0 };
+  test('routes to the right limit', () => {
+    expect(validateChange('stepsAdjust', 2500, vctx).ok).toBe(false);
+    expect(validateChange('kcalAdjust', -300, vctx).ok).toBe(false);
+    expect(validateChange('cardioAdjust', 5, vctx).ok).toBe(true);
+    expect(validateChange('proteinTarget', 140, vctx).ok).toBe(false);
+    expect(validateChange('proteinTarget', 140, vctx, true).ok).toBe(true);
+    expect(validateChange('baseKcalRest', 1600, vctx).ok).toBe(false);
+    expect(validateChange('deloadUntil', '2026-11-01', vctx).ok).toBe(true);
+  });
+});
+
+describe('AI change parsing', () => {
+  test('extracts an allowed change', () => {
+    const r = parseChange('Walk more.\nCHANGE: {"type":"stepsAdjust","value":1500,"reason":"above band"}', '2026-10-10');
+    expect(r.text).toBe('Walk more.');
+    expect(r.proposal?.apply).toEqual([{ type: 'stepsAdjust', value: 1500 }]);
+  });
+  test('ignores disallowed types', () => {
+    expect(parseChange('CHANGE: {"type":"fasting","value":1}', '2026-10-10').proposal).toBeNull();
   });
 });

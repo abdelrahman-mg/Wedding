@@ -99,3 +99,28 @@ const FORBIDDEN_CONTENT = /\bHIIT\b|sprint|\bjump|fat[\s-]*burner|detox|diet\s*p
 export function containsForbiddenAdvice(text: string): boolean {
   return FORBIDDEN_CONTENT.test(text);
 }
+
+/** Validate any plan change (coach proposal or manual edit) against the hard limits. */
+export function validateChange(
+  type: 'stepsAdjust' | 'kcalAdjust' | 'cardioAdjust' | 'proteinTarget' | 'deloadUntil' | 'baseKcalGym' | 'baseKcalRest',
+  value: number | string | null,
+  ctx: LimitCtx & { kcalAdjust: number },
+  manual = false,
+): LimitResult {
+  if (value == null || type === 'deloadUntil') return { ok: true };
+  const v = Number(value);
+  if (!Number.isFinite(v)) return { ok: false, reason: 'Not a number.' };
+  switch (type) {
+    case 'stepsAdjust':
+      return checkStepsAdjust(v, ctx);
+    case 'kcalAdjust':
+      return checkKcalAdjust(v, ctx);
+    case 'cardioAdjust':
+      return checkCardioAdjust(v, ctx);
+    case 'proteinTarget':
+      return checkProtein(v, manual);
+    case 'baseKcalGym':
+    case 'baseKcalRest':
+      return checkBaseKcal(v, ctx.kcalAdjust, ctx.doctorCleared);
+  }
+}

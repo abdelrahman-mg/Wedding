@@ -1,5 +1,6 @@
 import { DAY_TOTAL_FIXTURES, DAYS } from '../src/data/plan';
 import { defaultPlan } from '../src/engine/defaults';
+import { shoppingList, weeklyCounts } from '../src/engine/shopping';
 import { eatenTotals, plannedSlots, plannedTotals, planAverageKcal } from '../src/engine/nutrition';
 
 describe('day totals (4.3)', () => {
@@ -47,5 +48,22 @@ describe('day totals (4.3)', () => {
     expect(t.done).toBe(3);
     expect(t.planned).toBe(5);
     expect(t.overPenalties).toBe(1); // 900 vs 515 planned lunch
+  });
+});
+
+describe('shopping list', () => {
+  test('default plan shows the default list', () => {
+    const r = shoppingList(defaultPlan());
+    expect(r.edited).toBe(false);
+    expect(r.items.find((i) => i.id === 'eggs')!.display).toBe('24');
+  });
+  test('edited plan rescales countable items', () => {
+    const p = defaultPlan();
+    p.meals[0].N = 'N2'; // swap N4 (banana half) for N2 (whey)
+    const before = weeklyCounts(defaultPlan()).whey;
+    expect(weeklyCounts(p).whey).toBe(before + 1);
+    const r = shoppingList(p);
+    expect(r.edited).toBe(true);
+    expect(r.items.find((i) => i.id === 'whey')!.display).toMatch(/default 7 scoops/);
   });
 });

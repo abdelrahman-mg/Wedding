@@ -1,6 +1,5 @@
 // Strength trend (section 6.6): Epley estimated strength.
-import { MAIN_LIFTS } from '../data/sessions';
-import { findExercise } from '../data/sessions';
+import { findExercise, MAIN_LIFTS } from '../data/sessions';
 import type { ISODate, WorkoutLog } from './types';
 
 export function epley(weight: number, reps: number): number {

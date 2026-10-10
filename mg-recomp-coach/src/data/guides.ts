@@ -144,3 +144,33 @@ export const CRAVING_ROUTINE = [
   'Walk for 10 minutes, or step away from the kitchen and the phone.',
   'Still hungry after 10 minutes? Eat your next planned snack early. That is the plan working, not cheating.',
 ];
+
+/**
+ * Countable ingredients per meal (from the meal descriptions), used to rescale the
+ * shopping list when the weekly plan is edited. Non-countable items keep the default.
+ */
+export const MEAL_COUNTS: Record<string, Partial<Record<'eggs' | 'yogurt' | 'whey' | 'bread' | 'bananas' | 'apples' | 'sweet_potato', number>>> = {
+  B1: { eggs: 2, bread: 0.5 },
+  B2: { eggs: 3, bread: 0.5, yogurt: 1 },
+  B3: { whey: 1, bananas: 1 },
+  B4: { eggs: 2, bread: 1 },
+  M1: { yogurt: 1, apples: 1 },
+  M2: { eggs: 2 },
+  M3: { whey: 1, apples: 1 },
+  L1: {},
+  L2: { yogurt: 0.5 },
+  L3: {},
+  L4: {},
+  L5: { bread: 0.5 },
+  T: {},
+  PG: { bananas: 1 },
+  D1: { sweet_potato: 1 },
+  D2: { bread: 0.5, yogurt: 1 },
+  D3: { eggs: 3, bread: 0.5 },
+  D4: { bread: 0.5, yogurt: 0.25 },
+  D5: { eggs: 2, bread: 0.5 },
+  N1: { yogurt: 1 },
+  N2: { whey: 1, yogurt: 1 },
+  N3: { eggs: 1 },
+  N4: { yogurt: 1, bananas: 0.5 },
+};
