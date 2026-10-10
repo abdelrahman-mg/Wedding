@@ -114,6 +114,7 @@ export function daySummary(data: AppData, date: ISODate): DaySummary {
     proteinTarget: ctx.proteinTarget,
     sleep: log?.sleep ?? null,
     weightLogged: data.body[date]?.weight != null,
+    postLiftWalk: !!log?.postLiftWalk,
   });
   return {
     ctx,

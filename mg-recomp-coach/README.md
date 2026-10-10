@@ -87,6 +87,7 @@ Bottom tabs: **Today, Train, Progress, Coach, Plan**.
 - **Today.**
   - Header with greeting, date arrows to log past days, week, phase, day type and streak.
   - Targets card: kcal, protein, steps and water in 250 ml glasses.
+  - Weekly goal rings: workouts (4), days on plan (7), average steps vs target, and weigh-ins.
   - Meal slots with **Ate it**, **Plan B** and **Skip**. Plan B is a bottom sheet with same-slot alternatives sorted by closeness, the emergency meals, the ingredient table and "Log something else", all with a live kcal and protein comparison and the effect on the day total.
   - Quick log, oil-rule tracker, craving helper, "Something hurt" and "Something feels wrong" buttons.
   - Morning check-in before 11:00 and the end-of-day check-in.
@@ -95,7 +96,7 @@ Bottom tabs: **Today, Train, Progress, Coach, Plan**.
   - Exercise cards with cue, last session, progression suggestion and set rows (kg, reps or seconds, RIR 0 to 4+, done). Ticking a set saves it, buzzes lightly and starts the rest timer. The floating rest pill survives navigation and buzzes at zero.
   - "Not available / busy?" swaps (Just today or From now on), checked against the joint-safety rules.
   - Minimum version (30 min, 70% credit), the walk fallback (40% credit) and a session switcher that blocks back-to-back lower sessions.
-  - Warm-up and mobility checklists, the cardio timer on rest days, the baseline test in week 1 and the final test in week 12, and workout history.
+  - The optional 20-minute walk after lifting (+2 bonus points), warm-up and mobility checklists, the cardio timer on rest days, the baseline test in week 1 and the final test in week 12, and workout history.
 - **Progress.**
   - Weight chart with daily dots, a 7-day average, the shaded expected band and a start-weight line. Tap the chart to read a value.
   - Charts for waist, estimated strength per main lift (Epley), weekly steps, days on plan and sleep.
@@ -129,7 +130,8 @@ Design: Nile-teal and emerald primary colors with an amber accent for streaks an
 | Doctor clearance | You need to tick "Doctor reviewed my labs and BP" in Health checks and then confirm in Settings. Clearance relaxes the limits a little (1,500 kcal floor, 15,000 steps, 60 min cardio). The no-HIIT, no-running, no-jumping and no-supplement rules never relax. |
 | Units | kg/lb and cm/in apply to body weight, waist, charts and the band. Gym loads always stay in kg. |
 | Health Connect | Not bundled. It needs an extra native library and a permissions flow I could not test here. The toggle exists, and steps fall back to manual entry with a clear note. |
-| Reminders | DATE triggers for the next 14 days, built from each day's planned meal names. They are rescheduled on every app open and after any plan or setting change (debounced). The four Android channels are meals, training, check-ins and sleep. "Snooze all 24 h" is supported. |
+| Reminders | DATE triggers for the next 14 days, built from each day's planned meal names. They are rescheduled on every app open and after any plan or setting change (debounced). The four Android channels are meals, training, check-ins and sleep. "Snooze all 24 h" is supported. A water nudge within 20 minutes of another reminder is dropped so notifications never stack. |
+| Post-lift walk | The optional 20-minute walk after lifting is a toggle in Train on gym days, worth +2 bonus points (the day score still caps at 100). |
 | Shopping list | Default quantities from the brief. If you edit the plan, the countable items (eggs, yogurt, whey, bread, bananas, apples, sweet potatoes) are rescaled from per-meal counts. Other items show the default with a note. |
 | AI coach | Off by default. The key is stored in `expo-secure-store`. The app sends a compact 14-day JSON summary to the Anthropic Messages API (`claude-sonnet-5-5`). If the reply contains a `CHANGE:` line, it becomes a normal Apply / Not now card validated against the hard limits. Replies that mention forbidden content (HIIT, fat burners and so on) get a warning appended. |
 | Demo mode | Settings > Demo mode stashes your real data under a separate key, loads 4 weeks of generated logs, and restores the real data untouched when you turn it off. Anything you log while in demo mode is discarded. |
@@ -256,6 +258,8 @@ On first launch, the plan is copied into the user's data, so in-app edits never 
 - `phase`: ease-in, deload sets, triggered deload and its +150 kcal, sleep, energy and strength triggers.
 - `scoring`: score parts, penalties, training credit, the on-plan rule, streaks with the grace day, levels.
 - `limits`: every hard limit, doctor clearance, joint-safety keywords (all built-in exercises pass), migrations, AI change parsing.
+- `notifications`: 14 days of reminders with that day's meal names, gym reminders only on gym days, no water nudge stacked on another reminder, snooze, disabled reminders.
+- `layout`: boots the real `src/app` tree (root stack, tabs, the onboarding redirect).
 - `screens`: renders all 21 screens with demo data and with a fresh install, and drives three flows (log a set and see the rest timer start, then finish and save a workout; a Plan B swap; a blocked unsafe custom swap).
 
 ---

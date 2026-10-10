@@ -100,6 +100,8 @@ export interface DayLog {
   /** Session moved onto this day ("Do Upper A today instead"), or 'skip'. */
   sessionOverride?: SessionKey | 'skip';
   cravings?: number;
+  /** Optional 20-minute walk after lifting (bonus points). */
+  postLiftWalk?: boolean;
   checkinDone?: boolean;
   morningSeen?: boolean;
 }

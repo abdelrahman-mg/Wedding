@@ -18,6 +18,8 @@ export interface DayScoreInput {
   proteinTarget: number;
   sleep: number | null;
   weightLogged: boolean;
+  /** Optional 20-minute walk after lifting on gym days. */
+  postLiftWalk?: boolean;
 }
 
 export interface DayScore {
@@ -50,7 +52,7 @@ export function dayScore(i: DayScoreInput): DayScore {
   const steps = i.stepTarget > 0 ? 15 * Math.min(1, i.steps / i.stepTarget) : 0;
   const water = 10 * Math.min(1, i.water / 10);
   const protein = i.proteinTarget > 0 ? 10 * Math.min(1, i.protein / i.proteinTarget) : 0;
-  const bonus = (i.sleep != null && i.sleep >= 7 ? 3 : 0) + (i.weightLogged ? 2 : 0);
+  const bonus = (i.sleep != null && i.sleep >= 7 ? 3 : 0) + (i.weightLogged ? 2 : 0) + (i.isGymDay && i.postLiftWalk ? 2 : 0);
   const total = Math.min(100, Math.round(meals + training + steps + water + protein + bonus));
   return {
     total,

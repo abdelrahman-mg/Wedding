@@ -9,7 +9,7 @@ import { useApp } from '../../store/useApp';
 import { WorkoutView } from '../../features/Workout';
 import { SafetyButtons } from '../../features/SafetySheets';
 import { Icon } from '../../ui/Icon';
-import { Banner, Button, Card, Chip, Field, num, Row, Screen, SectionTitle, Sheet, T } from '../../ui/kit';
+import { Banner, Button, Card, Chip, Field, num, Row, Screen, SectionTitle, Sheet, T, ToggleRow } from '../../ui/kit';
 import { space, useTheme } from '../../ui/theme';
 
 function Collapsible({ title, items, defaultOpen = false }: { title: string; items: string[]; defaultOpen?: boolean }) {
@@ -152,6 +152,16 @@ export default function Train() {
       </T>
       {deload ? <Banner tone="info" icon="moon" text="Deload week: lighter on purpose." /> : null}
       {done ? <Banner tone="success" icon="check" text={`Done today: ${done === 'full' ? 'full workout' : done === 'minimum' ? 'minimum version' : 'walk fallback'}. Recovery now: protein, water, sleep.`} /> : null}
+      {ctx.isGym ? (
+        <Card tone="alt">
+          <ToggleRow
+            label="Optional: 20-min walk after lifting"
+            sub="Easy pace, talk test. Worth +2 bonus points."
+            value={!!data.dayLogs[today]?.postLiftWalk}
+            onChange={(v) => st.updateDay(today, { postLiftWalk: v })}
+          />
+        </Card>
+      ) : null}
 
       {ctx.session ? (
         <Card>

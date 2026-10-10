@@ -7,7 +7,7 @@ import { getMeal, SLOT_INFO, type Slot } from '../../data/meals';
 import { ARABIC_PHRASES, DAILY_MESSAGES } from '../../data/messages';
 import { addDays, formatLong, programWeek, todayISO, weekDates, weekStart } from '../../engine/dates';
 import { kcalRemovalSuggestions, proteinFix, plannedTotals } from '../../engine/nutrition';
-import { daySummary, pickMessageIndex, streaksAndXp } from '../../engine/selectors';
+import { daySummary, pickMessageIndex, streaksAndXp, weekStats } from '../../engine/selectors';
 import { useApp } from '../../store/useApp';
 import { BpSheet, SafetyButtons } from '../../features/SafetySheets';
 import { PlanBSheet } from '../../features/PlanBSheet';
@@ -41,6 +41,7 @@ export default function Today() {
   const log = data.dayLogs[date];
   const streak = useMemo(() => streaksAndXp(data, today), [data, today]);
   const plannedKcal = plannedTotals(data.plan, ctx.dow, ctx.isGym).kcal;
+  const wk = useMemo(() => weekStats(data, weekStart(date)), [data, date]);
   const isToday = date === today;
   const week = programWeek(start, date);
 
@@ -216,6 +217,29 @@ export default function Today() {
           {Array.from({ length: 10 }).map((_, i) => (
             <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: i < (log?.water ?? 0) ? c.primary : c.track }} />
           ))}
+        </Row>
+      </Card>
+
+      {/* Weekly goal rings */}
+      <Card>
+        <T v="label" muted>THIS WEEK (SUN-SAT)</T>
+        <Row style={{ justifyContent: 'space-between' }}>
+          {[
+            { label: 'Workouts', value: wk.workouts.credit, goal: 4, text: `${wk.workouts.credit}/4` },
+            { label: 'On plan', value: wk.daysOnPlan, goal: 7, text: `${wk.daysOnPlan}/7` },
+            { label: 'Steps avg', value: wk.avgSteps ?? 0, goal: ctx.stepTarget, text: wk.avgSteps != null ? `${Math.round(wk.avgSteps / 100) / 10}k` : '–' },
+            { label: 'Weigh-ins', value: wk.weighIns, goal: 7, text: `${wk.weighIns}/7` },
+          ].map((g) => {
+            const met = g.value >= g.goal;
+            return (
+              <View key={g.label} style={{ alignItems: 'center', gap: 4, flex: 1 }}>
+                <Ring size={58} stroke={7} pct={g.goal ? g.value / g.goal : 0} color={met ? c.accent : c.primary} label={`${g.label}: ${g.text}${met ? ', goal met' : ''}`}>
+                  {met ? <Icon name="check" color={c.accent} size={22} strokeWidth={3} /> : <T v="label">{g.text}</T>}
+                </Ring>
+                <T v="caption" muted center>{g.label}</T>
+              </View>
+            );
+          })}
         </Row>
       </Card>
 

@@ -5,7 +5,8 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, TextInput, View } from 'react-native';
 import { FINISH_MESSAGES } from '../data/messages';
-import { altDisplayName, LEG_EXTENSION_OPTIN, SESSIONS, type ExerciseDef } from '../data/sessions';
+import { KNEE_SAFETY } from '../data/guides';
+import { altDisplayName, LEG_EXTENSION_OPTIN, LOWER_SESSIONS, SESSIONS, type ExerciseDef } from '../data/sessions';
 import { checkExerciseSafety } from '../engine/limits';
 import { deloadLoad, targetRir, workingSets } from '../engine/phase';
 import { historyFor, isPR, suggestProgression, type ExerciseSession, type Suggestion } from '../engine/progression';
@@ -280,6 +281,7 @@ export function WorkoutView({ week }: { week: number }) {
         <ProgressBar label="Session" value={done} max={total} valueText={`${done} / ${total} sets`} />
       </Card>
       {active.deload ? <Banner tone="info" icon="moon" text="Deload week: lighter on purpose. Half the sets, about 90% weights, RIR 4." /> : null}
+      {LOWER_SESSIONS.includes(active.sessionKey) || active.sessionKey === 'MINIMUM' ? <Banner tone="info" icon="alert" text={`Knee: pain-free range only. ${KNEE_SAFETY}`} /> : null}
       {!data.checklist.doctor_bp?.done ? <Banner tone="warning" text="BP not yet checked: breathe out on the effort, no breath-holding, no grinding reps." /> : null}
       {hidden.length ? (
         <Banner tone="warning" text={`Paused until a doctor or physio clears you: ${hidden.map((h) => h.name).join(', ')}.`} action="Unpause in Settings" onPress={() => router.push('/settings')} />

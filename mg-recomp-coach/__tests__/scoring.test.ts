@@ -40,6 +40,12 @@ describe('day score (7.1)', () => {
     expect(a.total - b.total).toBe(3);
   });
 
+  test('optional post-lift walk adds 2 bonus points on gym days only', () => {
+    const base = { ...perfect, sleep: null, weightLogged: false, water: 0 };
+    expect(dayScore({ ...base, postLiftWalk: true }).total - dayScore(base).total).toBe(2);
+    expect(dayScore({ ...base, isGymDay: false, workout: null, cardioMinutes: 20, postLiftWalk: true }).bonus).toBe(0);
+  });
+
   test('training points: full 25, minimum 17, walk 10', () => {
     expect(trainingPoints(true, 'full', 0, 20)).toBe(25);
     expect(trainingPoints(true, 'minimum', 0, 20)).toBe(17);

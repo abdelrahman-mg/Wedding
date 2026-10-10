@@ -119,8 +119,11 @@ export function buildSchedule(data: AppData, now: Date = new Date()): Planned[] 
       }
     }
   }
+  // Quiet handling: drop a water nudge that lands within 20 minutes of any other reminder.
+  const others = out.filter((p) => p.title !== 'Water').map((p) => p.at.getTime());
+  const quiet = out.filter((p) => p.title !== 'Water' || !others.some((t) => Math.abs(t - p.at.getTime()) < 20 * 60000));
   const snooze = data.settings.snoozeUntil ?? 0;
-  return out.filter((p) => p.at.getTime() > now.getTime() + 30000 && p.at.getTime() > snooze);
+  return quiet.filter((p) => p.at.getTime() > now.getTime() + 30000 && p.at.getTime() > snooze);
 }
 
 let running: Promise<void> | null = null;
