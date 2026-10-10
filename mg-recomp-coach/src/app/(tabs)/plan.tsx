@@ -82,7 +82,7 @@ export default function Plan() {
                   {cur ? ' · NOW' : ''}
                 </T>
                 <T v="caption" muted>
-                  {steps.toLocaleString('en-US')} steps · cardio {w.cardio} min · band {u.w(b.low)}–{u.w(b.high)} {u.wUnit}
+                  {steps.toLocaleString('en-US')} steps · cardio {w.cardio} min · band {u.w(b.low).toFixed(1)}–{u.w(b.high).toFixed(1)} {u.wUnit}
                 </T>
               </View>
             </View>
