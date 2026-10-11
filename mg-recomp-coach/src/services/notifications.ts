@@ -106,11 +106,11 @@ export function buildSchedule(data: AppData, now: Date = new Date()): Planned[] 
       out.push({ at: at(date, rem.time), title: REMINDER_LABELS[key].label, body: `${meal.name}: ${meal.kcal} kcal, ${meal.protein} g protein.`, channel: 'meals', url: '/' });
     }
     if (r.gym.enabled && ctx.session) {
-      out.push({ at: at(date, r.gym.time), title: 'Gym time', body: 'Tired? Do the 30-minute minimum version.', channel: 'training', url: '/train' });
+      out.push({ at: at(date, r.gym.time), title: 'Gym time', body: 'Tired? Do the 30-minute minimum version.', channel: 'training', url: '/gym' });
     }
     if (r.checkin.enabled) out.push({ at: at(date, r.checkin.time), title: 'End-of-day check-in', body: 'Two minutes: score, protein gap, tomorrow.', channel: 'checkins', url: '/checkin' });
     if (r.bedtime.enabled) out.push({ at: at(date, r.bedtime.time), title: 'Bedtime', body: 'Screens down. Lights off by 23:30.', channel: 'sleep' });
-    if (r.review.enabled && dow === 0) out.push({ at: at(date, r.review.time), title: 'Weekly review', body: 'Your week is in. See what the data says.', channel: 'checkins', url: '/coach' });
+    if (r.review.enabled && dow === 0) out.push({ at: at(date, r.review.time), title: 'Weekly review', body: 'Your week is in. See what the data says.', channel: 'checkins', url: '/progress?tab=review' });
     if (r.prep_fri.enabled && dow === 5) out.push({ at: at(date, r.prep_fri.time), title: 'Meal prep', body: 'Friday prep covers Fri-Mon: chicken, rice, eggs, soup.', channel: 'meals', url: '/prep' });
     if (r.prep_tue.enabled && dow === 2) out.push({ at: at(date, r.prep_tue.time), title: 'Meal prep', body: 'Tuesday prep covers Tue-Thu and Saturday.', channel: 'meals', url: '/prep' });
     if (r.water.enabled) {

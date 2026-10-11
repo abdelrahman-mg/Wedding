@@ -1,9 +1,9 @@
 // Render smoke test: every screen renders with demo data (catches runtime errors without a device).
 import { fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import Today from '../src/app/(tabs)/index';
-import Train from '../src/app/(tabs)/train';
+import Gym from '../src/app/(tabs)/gym';
+import Food from '../src/app/(tabs)/food';
 import Progress from '../src/app/(tabs)/progress';
-import Coach from '../src/app/(tabs)/coach';
 import Plan from '../src/app/plan';
 import Log from '../src/app/(tabs)/log';
 import Onboarding from '../src/app/onboarding';
@@ -34,9 +34,9 @@ beforeAll(async () => {
 
 const routes: Record<string, React.ComponentType<any>> = {
   index: Today,
-  train: Train,
+  gym: Gym,
+  food: Food,
   progress: Progress,
-  coach: Coach,
   plan: Plan,
   log: Log,
   onboarding: Onboarding,
@@ -58,12 +58,12 @@ const routes: Record<string, React.ComponentType<any>> = {
 };
 
 const expectations: Record<string, RegExp> = {
-  '/': /Meals/,
-  '/train': /Train/,
+  '/': /UP NEXT|All meals logged/,
+  '/gym': /All workouts/,
+  '/food': /Meal library/,
   '/progress': /Progress/,
-  '/coach': /WHAT THE DATA SAYS/,
   '/plan': /12-week roadmap/,
-  '/log': /Everything you track/,
+  '/log': /Submit anything, anytime/,
   '/onboarding': /Hey MG/,
   '/checkin': /Quick questions/,
   '/edit-meals': /Treat lunch day/,
@@ -106,7 +106,7 @@ describe('workout flow', () => {
     const d = buildDemoData(todayISO());
     useApp.setState({ data: d, hydrated: true, active: null });
     useApp.getState().startWorkout(todayISO(), 'UPPER_A', 'full', false);
-    await renderRouter(routes, { initialUrl: '/train' });
+    await renderRouter(routes, { initialUrl: '/gym' });
     expect((await screen.findAllByText(/Machine chest press/)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Not available \/ busy\?/).length).toBeGreaterThan(0);
     expect(screen.getByText('Finish workout')).toBeTruthy();
@@ -118,7 +118,7 @@ describe('interactions', () => {
     const d = { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } };
     useApp.setState({ data: d, hydrated: true, active: null, restTimer: null });
     useApp.getState().startWorkout(todayISO(), 'MINIMUM', 'minimum', false);
-    await renderRouter(routes, { initialUrl: '/train' });
+    await renderRouter(routes, { initialUrl: '/gym' });
     await fireEvent.press(screen.getAllByLabelText('Set 1 done')[0]);
     expect(useApp.getState().active?.sets.filter((s) => s.done)).toHaveLength(1);
     expect(useApp.getState().restTimer?.total).toBe(120); // leg press rest
@@ -150,7 +150,7 @@ describe('interactions', () => {
     const d = { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } };
     useApp.setState({ data: d, hydrated: true, active: null });
     useApp.getState().startWorkout(todayISO(), 'UPPER_A', 'full', false);
-    await renderRouter(routes, { initialUrl: '/train' });
+    await renderRouter(routes, { initialUrl: '/gym' });
     await fireEvent.press(screen.getAllByText('Not available / busy?')[0]);
     await fireEvent.changeText(await screen.findByLabelText('Type my own'), 'Bench dips');
     await fireEvent.press(screen.getByText('Use my own'));
@@ -161,26 +161,46 @@ describe('interactions', () => {
 describe('log tab and AI setup', () => {
   const fresh = () => ({ ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } });
 
-  test('the Log tab saves body, activity and recovery in one go', async () => {
+  test('the Log tab submits each input on its own and can undo it', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
     await renderRouter(routes, { initialUrl: '/log' });
-    await fireEvent.changeText(screen.getByLabelText('Weight'), '108.4');
-    await fireEvent.changeText(screen.getByLabelText('Steps'), '7200');
-    await fireEvent.changeText(screen.getByLabelText('Sleep last night'), '7.5');
-    await fireEvent.press(screen.getByLabelText('Energy (1 = drained, 5 = great): 4'));
-    await fireEvent.press(screen.getByText('Save'));
-    const d = useApp.getState().data;
-    expect(d.body[todayISO()]?.weight).toBe(108.4);
-    expect(d.dayLogs[todayISO()]?.steps).toBe(7200);
-    expect(d.dayLogs[todayISO()]?.sleep).toBe(7.5);
-    expect(d.dayLogs[todayISO()]?.energy).toBe(4);
-    expect(screen.getByText(/Saved for/)).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '108.4');
+    await fireEvent.press(screen.getAllByText('Submit')[0]);
+    expect(useApp.getState().data.body[todayISO()]?.weight).toBe(108.4);
+    await fireEvent.changeText(screen.getByLabelText('Total from your phone’s step counter'), '7200');
+    await fireEvent.press(screen.getAllByText('Submit')[1]);
+    expect(useApp.getState().data.dayLogs[todayISO()]?.steps).toBe(7200);
+    await fireEvent.press(screen.getByText('+1 glass (250 ml)'));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.water).toBe(1);
+    expect(screen.getByText('Weight 108.4 kg')).toBeTruthy();
+    expect(useApp.getState().data.entries).toHaveLength(3);
+    await fireEvent.press(screen.getByLabelText('Undo: Weight 108.4 kg'));
+    expect(useApp.getState().data.body[todayISO()]?.weight).toBeUndefined();
+    expect(useApp.getState().data.entries).toHaveLength(2);
+  });
+
+  test('extra food counts toward the day and shows on the Food tab', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/food' });
+    await fireEvent.press(screen.getByText('Add food you ate'));
+    await fireEvent.press(await screen.findByText('Banana · 105'));
+    const log = useApp.getState().data.dayLogs[todayISO()];
+    expect(log?.extras?.[0]).toMatchObject({ name: 'Banana', kcal: 105 });
+    expect(screen.getByText(/105 \/ /)).toBeTruthy();
+  });
+
+  test('the Gym tab lists every workout and its exercises', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/gym' });
+    await fireEvent.press(screen.getByLabelText('Lower B. Show exercises'));
+    expect(screen.getByText('Goblet box squat (to bench height)')).toBeTruthy();
+    expect(screen.getByText('Start Lower B now')).toBeTruthy();
   });
 
   test('Coach shows the AI key setup under Ask the coach', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
-    await renderRouter(routes, { initialUrl: '/coach' });
-    await fireEvent.press(screen.getByLabelText('Ask the coach'));
+    await renderRouter(routes, { initialUrl: '/progress' });
+    await fireEvent.press(screen.getByLabelText('Ask coach'));
     expect(await screen.findByText(/Connect the AI coach/)).toBeTruthy();
     expect(screen.getByText('Open Anthropic Console')).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText('API key'), 'not-a-real-key-123456789');

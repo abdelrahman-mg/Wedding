@@ -65,7 +65,7 @@ export default function Checkin() {
         <Card>
           <T v="bodyStrong">Did you do the workout?</T>
           <Row wrap>
-            <Chip label="Yes, open Train to log it" onPress={() => router.push('/train')} />
+            <Chip label="Yes, open Gym to log it" onPress={() => router.push('/gym')} />
             <Chip label="Walked instead" onPress={() => st.logWalk(date)} />
             <Chip label="No" onPress={() => st.updateDay(date, { sessionOverride: 'skip' })} />
           </Row>

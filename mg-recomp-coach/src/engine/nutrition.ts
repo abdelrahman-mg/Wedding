@@ -85,6 +85,11 @@ export interface EatenTotals {
 export function eatenTotals(slots: PlannedSlot[], log: DayLog | undefined): EatenTotals {
   const res: EatenTotals = { kcal: 0, protein: 0, done: 0, planned: slots.length, overPenalties: 0, treatsLogged: 0 };
   if (!log) return res;
+  for (const x of log.extras ?? []) {
+    res.kcal += x.kcal;
+    res.protein += x.protein;
+    if (x.treat) res.treatsLogged++;
+  }
   for (const s of slots) {
     const entry = log.meals[s.slot];
     if (!entry || entry.status === 'skipped') continue;

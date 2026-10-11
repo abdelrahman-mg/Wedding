@@ -1,224 +1,264 @@
-// One place for every number MG tracks: body, activity, recovery, water, oil, BP, notes.
+// "Submit anything, anytime": every input has its own Submit, and a timeline shows what was logged.
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { CRAVING_ROUTINE } from '../../data/guides';
 import { CARDIO_TYPES } from '../../data/sessions';
 import { addDays, formatLong, formatShort, todayISO } from '../../engine/dates';
-import { bpStatus, isHighBp } from '../../engine/rules';
+import { bpStatus } from '../../engine/rules';
 import { dayContext } from '../../engine/selectors';
-import type { ISODate } from '../../engine/types';
+import type { EntryKind, ISODate } from '../../engine/types';
+import { AddFoodSheet } from '../../features/Meals';
 import { PainSheet, RedFlagSheet } from '../../features/SafetySheets';
 import { useApp } from '../../store/useApp';
-import { Icon } from '../../ui/Icon';
-import { Banner, Button, Card, Chip, Field, IconButton, num, Row, Screen, ScreenHeader, Segmented, Sheet, T, ToggleRow } from '../../ui/kit';
+import { Icon, type IconName } from '../../ui/Icon';
+import { Banner, Button, Card, Chip, Field, IconButton, num, Row, Screen, ScreenHeader, SectionTitle, Segmented, Sheet, T, ToggleRow } from '../../ui/kit';
 import { radius, space, useTheme } from '../../ui/theme';
 import { useUnits } from '../../ui/units';
 
 const SCALE = [1, 2, 3, 4, 5].map((n) => ({ label: String(n), value: n }));
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+const KIND_ICON: Record<EntryKind, IconName> = {
+  weight: 'scale',
+  waist: 'scale',
+  steps: 'walk',
+  sleep: 'moon',
+  energy: 'bolt',
+  hunger: 'bolt',
+  water: 'drop',
+  cardio: 'walk',
+  bp: 'heart',
+  note: 'plan',
+  food: 'plus',
+};
+
+/** One input row: a field (or custom control) and a Submit button. */
+function QuickInput({
+  icon,
+  title,
+  current,
+  children,
+  onSubmit,
+  disabled,
+  submitLabel = 'Submit',
+}: {
+  icon: IconName;
+  title: string;
+  current?: string;
+  children: React.ReactNode;
+  onSubmit: () => void;
+  disabled?: boolean;
+  submitLabel?: string;
+}) {
+  const { c } = useTheme();
   return (
-    <Card>
-      <T v="heading">{title}</T>
-      {hint ? <T v="caption" muted>{hint}</T> : null}
+    <Card style={{ paddingVertical: space.md }}>
+      <Row>
+        <Icon name={icon} color={c.primary} size={20} />
+        <T v="bodyStrong" style={{ flex: 1 }}>{title}</T>
+        {current ? <T v="caption" muted>{current}</T> : null}
+      </Row>
       {children}
+      <Row style={{ justifyContent: 'flex-end' }}>
+        <Button label={submitLabel} small icon="check" onPress={onSubmit} disabled={disabled} style={{ minWidth: 120 }} />
+      </Row>
     </Card>
   );
 }
 
-function LogForm({ date }: { date: ISODate }) {
+function Inputs({ date, onDone }: { date: ISODate; onDone: (msg: string) => void }) {
   const { c } = useTheme();
   const u = useUnits();
   const data = useApp((s) => s.data);
-  const st = useApp.getState();
+  const submit = useApp((s) => s.submit);
   const log = data.dayLogs[date];
   const body = data.body[date];
   const ctx = useMemo(() => dayContext(data, date), [data, date]);
-  const [saved, setSaved] = useState(false);
-  const [f, setF] = useState(() => ({
-    weight: body?.weight != null ? String(u.w(body.weight)) : '',
-    waist: body?.waist != null ? String(u.l(body.waist)) : '',
-    steps: log?.steps != null ? String(log.steps) : '',
-    cardio: log?.cardioMinutes != null ? String(log.cardioMinutes) : '',
-    cardioType: log?.cardioType ?? null,
-    sleep: log?.sleep != null ? String(log.sleep) : '',
-    energy: log?.energy ?? null,
-    hunger: log?.hunger ?? null,
-    note: log?.note ?? '',
-  }));
-  const set = (patch: Partial<typeof f>) => {
-    setSaved(false);
-    setF((x) => ({ ...x, ...patch }));
+  const [weight, setWeight] = useState('');
+  const [waist, setWaist] = useState('');
+  const [steps, setSteps] = useState('');
+  const [sleep, setSleep] = useState('');
+  const [cardio, setCardio] = useState('');
+  const [cardioType, setCardioType] = useState<string>(CARDIO_TYPES[0]);
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [hunger, setHunger] = useState<number | null>(null);
+  const [note, setNote] = useState('');
+  const [bp, setBp] = useState({ sys: '', dia: '', pulse: '', symptoms: false });
+
+  const done = (msg: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    onDone(msg);
   };
 
-  const save = () => {
-    const steps = num(f.steps);
-    const sleep = num(f.sleep);
-    const cardio = num(f.cardio);
-    st.updateDay(date, {
-      steps: steps != null ? Math.max(0, Math.round(steps)) : undefined,
-      sleep: sleep != null ? Math.min(14, Math.max(0, sleep)) : undefined,
-      cardioMinutes: cardio != null ? Math.min(180, Math.max(0, Math.round(cardio))) : undefined,
-      cardioType: f.cardioType ?? undefined,
-      energy: f.energy ?? undefined,
-      hunger: f.hunger ?? undefined,
-      note: f.note.trim() || undefined,
-    });
-    const w0 = num(f.weight);
-    const wa0 = num(f.waist);
-    const w = w0 != null ? Math.round(u.toKg(w0) * 10) / 10 : null;
-    const wa = wa0 != null ? Math.round(u.toCm(wa0) * 10) / 10 : null;
-    st.setBody(date, { weight: w != null && w > 30 && w < 300 ? w : null, waist: wa != null && wa > 40 && wa < 200 ? wa : null });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    setSaved(true);
-  };
+  const w = num(weight);
+  const wa = num(waist);
+  const st = num(steps);
+  const sl = num(sleep);
+  const cm = num(cardio);
+  const sys = num(bp.sys);
+  const dia = num(bp.dia);
 
   return (
     <>
-      <Section title="Body" hint="Weigh after the toilet, before breakfast. Waist once a week at the belly button.">
-        <Row>
-          <Field label="Weight" value={f.weight} onChange={(v) => set({ weight: v })} suffix={u.wUnit} />
-          <Field label="Waist" value={f.waist} onChange={(v) => set({ waist: v })} suffix={u.lUnit} />
-        </Row>
-      </Section>
+      <QuickInput
+        icon="scale"
+        title="Weight"
+        current={body?.weight != null ? `now ${u.fw(body.weight)}` : 'after the toilet, before breakfast'}
+        disabled={w == null || u.toKg(w) < 30 || u.toKg(w) > 300}
+        onSubmit={() => {
+          submit(date, 'weight', Math.round(u.toKg(w as number) * 10) / 10);
+          setWeight('');
+          done('Weight saved.');
+        }}
+      >
+        <Field label={`Weight (${u.wUnit})`} value={weight} onChange={setWeight} suffix={u.wUnit} />
+      </QuickInput>
 
-      <Section title="Activity" hint={`Targets today: ${ctx.stepTarget.toLocaleString('en-US')} steps${ctx.isGym ? '' : ` · ${ctx.cardioTarget} min easy cardio`}`}>
+      <QuickInput
+        icon="walk"
+        title="Steps today"
+        current={`${(log?.steps ?? 0).toLocaleString('en-US')} / ${ctx.stepTarget.toLocaleString('en-US')}`}
+        disabled={st == null || st < 0}
+        onSubmit={() => {
+          submit(date, 'steps', Math.round(st as number));
+          setSteps('');
+          done('Steps saved.');
+        }}
+      >
+        <Field label="Total from your phone’s step counter" value={steps} onChange={setSteps} keyboard="number-pad" />
+      </QuickInput>
+
+      <Card style={{ paddingVertical: space.md }}>
         <Row>
-          <Field label="Steps" value={f.steps} onChange={(v) => set({ steps: v })} keyboard="number-pad" />
-          <Field label="Cardio" value={f.cardio} onChange={(v) => set({ cardio: v })} keyboard="number-pad" suffix="min" />
+          <Icon name="drop" color={c.primary} size={20} />
+          <T v="bodyStrong" style={{ flex: 1 }}>Water</T>
+          <T v="caption" muted>{log?.water ?? 0} / 10 glasses</T>
         </Row>
-        <Row wrap>
+        <Row>
+          <Button label="−1 glass" small variant="ghost" onPress={() => submit(date, 'water', -1)} disabled={(log?.water ?? 0) <= 0} flex />
+          <Button label="+1 glass (250 ml)" small icon="plus" onPress={() => { submit(date, 'water', 1); done('Water added.'); }} flex />
+        </Row>
+      </Card>
+
+      <QuickInput
+        icon="walk"
+        title="Cardio"
+        current={`${log?.cardioMinutes ?? 0}${ctx.isGym ? '' : ` / ${ctx.cardioTarget}`} min today`}
+        disabled={cm == null || cm <= 0 || cm > 180}
+        submitLabel="Add"
+        onSubmit={() => {
+          submit(date, 'cardio', Math.round(cm as number), { cardioType });
+          setCardio('');
+          done('Cardio added.');
+        }}
+      >
+        <Field label="Minutes" value={cardio} onChange={setCardio} keyboard="number-pad" suffix="min" />
+        <Row wrap gap={6} style={{ marginTop: 6 }}>
           {CARDIO_TYPES.map((t) => (
-            <Chip key={t} label={t} selected={f.cardioType === t} onPress={() => set({ cardioType: f.cardioType === t ? null : t })} />
+            <Chip key={t} label={t} selected={cardioType === t} onPress={() => setCardioType(t)} />
           ))}
         </Row>
-        {ctx.isGym ? (
-          <ToggleRow label="20-min walk after lifting" sub="Optional, +2 bonus points" value={!!log?.postLiftWalk} onChange={(v) => st.updateDay(date, { postLiftWalk: v })} />
-        ) : null}
-      </Section>
+      </QuickInput>
 
-      <Section title="Recovery">
-        <Field label="Sleep last night" value={f.sleep} onChange={(v) => set({ sleep: v })} suffix="hours" />
-        <Segmented label="Energy (1 = drained, 5 = great)" value={f.energy} onChange={(v) => set({ energy: v })} options={SCALE} />
-        <Segmented label="Hunger (1 = full, 5 = starving)" value={f.hunger} onChange={(v) => set({ hunger: v })} options={SCALE} />
-      </Section>
+      <QuickInput
+        icon="moon"
+        title="Sleep last night"
+        current={log?.sleep != null ? `${log.sleep} h logged` : 'goal 7+ hours'}
+        disabled={sl == null || sl < 0 || sl > 14}
+        onSubmit={() => {
+          submit(date, 'sleep', sl);
+          setSleep('');
+          done('Sleep saved.');
+        }}
+      >
+        <Field label="Hours" value={sleep} onChange={setSleep} suffix="h" />
+      </QuickInput>
 
-      <Section title="Notes">
-        <Field label="Anything worth remembering" value={f.note} onChange={(v) => set({ note: v })} keyboard="default" multiline placeholder="e.g. wedding dinner, slept badly, knee felt great" />
-      </Section>
+      <QuickInput
+        icon="bolt"
+        title="Energy and hunger"
+        current={log?.energy != null || log?.hunger != null ? `now ${log?.energy ?? '–'} / ${log?.hunger ?? '–'}` : undefined}
+        disabled={energy == null && hunger == null}
+        onSubmit={() => {
+          if (energy != null) submit(date, 'energy', energy);
+          if (hunger != null) submit(date, 'hunger', hunger);
+          setEnergy(null);
+          setHunger(null);
+          done('Saved.');
+        }}
+      >
+        <Segmented label="Energy (1 drained, 5 great)" value={energy} onChange={setEnergy} options={SCALE} />
+        <Segmented label="Hunger (1 full, 5 starving)" value={hunger} onChange={setHunger} options={SCALE} />
+      </QuickInput>
 
-      {saved ? <Banner tone="success" icon="check" text={`Saved for ${formatLong(date)}.`} /> : null}
-      <Button label="Save" icon="check" onPress={save} />
+      <QuickInput
+        icon="scale"
+        title="Waist (weekly)"
+        current={body?.waist != null ? `now ${u.fl(body.waist)}` : 'at the belly button, relaxed'}
+        disabled={wa == null || u.toCm(wa) < 40 || u.toCm(wa) > 200}
+        onSubmit={() => {
+          submit(date, 'waist', Math.round(u.toCm(wa as number) * 10) / 10);
+          setWaist('');
+          done('Waist saved.');
+        }}
+      >
+        <Field label={`Waist (${u.lUnit})`} value={waist} onChange={setWaist} suffix={u.lUnit} />
+      </QuickInput>
 
-      <Section title="Water and oil" hint="These save as you tap.">
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Row gap={6}>
-            <Icon name="drop" color={c.primary} />
-            <T v="bodyStrong">{log?.water ?? 0} / 10 glasses</T>
-          </Row>
-          <Row gap={0}>
-            <IconButton name="minus" label="Remove a glass of water" onPress={() => st.addWater(date, -1)} color={c.primary} />
-            <IconButton name="plus" label="Add a glass of water (250 ml)" onPress={() => st.addWater(date, 1)} color={c.primary} />
-          </Row>
+      <QuickInput
+        icon="heart"
+        title="Blood pressure"
+        current={data.bp.length ? bpStatus(data.bp).level.replace('doctorSoon', 'see a doctor soon') : 'sit 5 min first'}
+        disabled={!sys || !dia}
+        submitLabel="Add"
+        onSubmit={() => {
+          submit(date, 'bp', sys, { bp: { systolic: sys as number, diastolic: dia as number, pulse: num(bp.pulse) ?? undefined, time: new Date().getHours() < 14 ? 'morning' : 'evening', symptoms: bp.symptoms } });
+          setBp({ sys: '', dia: '', pulse: '', symptoms: false });
+          done(bpStatus(useApp.getState().data.bp).message);
+        }}
+      >
+        <Row>
+          <Field label="Top" value={bp.sys} onChange={(v) => setBp({ ...bp, sys: v })} keyboard="number-pad" />
+          <Field label="Bottom" value={bp.dia} onChange={(v) => setBp({ ...bp, dia: v })} keyboard="number-pad" />
+          <Field label="Pulse" value={bp.pulse} onChange={(v) => setBp({ ...bp, pulse: v })} keyboard="number-pad" />
         </Row>
-        <T v="label">Oil measured with a teaspoon today?</T>
-        <Row wrap>
-          <Chip label="Yes" selected={log?.oilMeasured === true} onPress={() => st.updateDay(date, { oilMeasured: true, oilTsp: log?.oilTsp ?? 3 })} />
-          <Chip label="No" selected={log?.oilMeasured === false} onPress={() => st.updateDay(date, { oilMeasured: false })} />
-          {log?.oilMeasured ? (
-            <Row gap={0}>
-              <IconButton name="minus" label="Less oil" onPress={() => st.updateDay(date, { oilTsp: Math.max(0, (log?.oilTsp ?? 0) - 1) })} color={c.primary} />
-              <T v="bodyStrong" color={(log?.oilTsp ?? 0) > 4 ? c.warning : c.text}>
-                {log?.oilTsp ?? 0} tsp {(log?.oilTsp ?? 0) <= 4 ? '✓' : '(goal 4 or fewer)'}
-              </T>
-              <IconButton name="plus" label="More oil" onPress={() => st.updateDay(date, { oilTsp: (log?.oilTsp ?? 0) + 1 })} color={c.primary} />
-            </Row>
-          ) : null}
-        </Row>
-      </Section>
+        <ToggleRow label="Symptoms right now?" sub="Headache, chest pain, vision changes" value={bp.symptoms} onChange={(v) => setBp({ ...bp, symptoms: v })} />
+      </QuickInput>
+
+      <QuickInput
+        icon="plan"
+        title="Note"
+        disabled={!note.trim()}
+        submitLabel="Add"
+        onSubmit={() => {
+          submit(date, 'note', null, { text: note.trim() });
+          setNote('');
+          done('Note added.');
+        }}
+      >
+        <Field label="Anything worth remembering" value={note} onChange={setNote} keyboard="default" multiline placeholder="e.g. wedding dinner, knee felt great" />
+      </QuickInput>
     </>
   );
 }
 
-function BpCard({ date }: { date: ISODate }) {
-  const entries = useApp((s) => s.data.bp);
-  const addBp = useApp((s) => s.addBp);
-  const [sys, setSys] = useState('');
-  const [dia, setDia] = useState('');
-  const [pulse, setPulse] = useState('');
-  const [time, setTime] = useState<'morning' | 'evening'>(new Date().getHours() < 14 ? 'morning' : 'evening');
-  const [symptoms, setSymptoms] = useState(false);
-  const status = bpStatus(entries);
-  const last = [...entries].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-  const s = num(sys);
-  const d = num(dia);
-  return (
-    <Section title="Blood pressure" hint="Sit quietly for 5 minutes, arm at heart level, then measure.">
-      {last ? (
-        <T v="label">
-          Last: {last.systolic}/{last.diastolic} on {formatShort(last.date)} {isHighBp(last) ? '(high)' : ''}
-        </T>
-      ) : null}
-      {entries.length ? <Banner tone={status.level === 'urgent' ? 'danger' : status.level === 'normal' ? 'success' : 'warning'} text={status.message} /> : null}
-      <Row>
-        <Field label="Top (sys)" value={sys} onChange={setSys} keyboard="number-pad" />
-        <Field label="Bottom (dia)" value={dia} onChange={setDia} keyboard="number-pad" />
-        <Field label="Pulse" value={pulse} onChange={setPulse} keyboard="number-pad" />
-      </Row>
-      <Segmented value={time} onChange={setTime} options={[{ label: 'Morning', value: 'morning' }, { label: 'Evening', value: 'evening' }]} />
-      <ToggleRow label="Symptoms right now?" sub="Headache, chest pain, vision changes, dizziness" value={symptoms} onChange={setSymptoms} />
-      <Button
-        label="Add reading"
-        variant="secondary"
-        disabled={!s || !d}
-        onPress={() => {
-          if (!s || !d) return;
-          addBp({ date, systolic: s, diastolic: d, pulse: num(pulse) ?? undefined, time, symptoms });
-          setSys('');
-          setDia('');
-          setPulse('');
-          setSymptoms(false);
-        }}
-      />
-    </Section>
-  );
-}
-
-function RecentDays({ date, onPick }: { date: ISODate; onPick: (d: ISODate) => void }) {
+function Timeline({ date }: { date: ISODate }) {
   const { c } = useTheme();
-  const u = useUnits();
-  const data = useApp((s) => s.data);
-  const today = todayISO();
-  const days = Array.from({ length: 7 }, (_, i) => addDays(today, -i)).filter((d) => !data.profile.startDate || d >= addDays(data.profile.startDate, -1));
+  const entries = useApp((s) => s.data.entries);
+  const removeEntry = useApp((s) => s.removeEntry);
+  const list = entries.filter((e) => e.date === date).sort((a, b) => b.time - a.time);
+  if (!list.length) return <T muted>Nothing submitted for this day yet. Everything you submit shows up here, and you can undo it.</T>;
   return (
-    <Section title="Last 7 days" hint="Tap a day to edit it.">
-      <Row gap={0} style={{ paddingBottom: 4 }}>
-        {['Day', 'Weight', 'Steps', 'Sleep', 'Water'].map((h) => (
-          <T key={h} v="caption" muted style={{ flex: 1 }}>{h}</T>
-        ))}
-      </Row>
-      {days.map((d) => {
-        const l = data.dayLogs[d];
-        const w = data.body[d]?.weight;
-        const sel = d === date;
-        return (
-          <Pressable
-            key={d}
-            onPress={() => onPick(d)}
-            accessibilityRole="button"
-            accessibilityLabel={`Edit ${formatLong(d)}`}
-            style={{ flexDirection: 'row', minHeight: 44, alignItems: 'center', borderRadius: radius.sm, backgroundColor: sel ? c.surfaceAlt : 'transparent' }}
-          >
-            <T v="label" style={{ flex: 1 }}>{d === today ? 'Today' : formatShort(d)}</T>
-            <T style={{ flex: 1 }}>{w != null ? u.w(w) : '–'}</T>
-            <T style={{ flex: 1 }}>{l?.steps != null ? `${Math.round(l.steps / 100) / 10}k` : '–'}</T>
-            <T style={{ flex: 1 }}>{l?.sleep != null ? `${l.sleep}h` : '–'}</T>
-            <T style={{ flex: 1 }}>{l?.water ?? 0}</T>
-          </Pressable>
-        );
-      })}
-    </Section>
+    <Card style={{ gap: 0, paddingVertical: space.xs }}>
+      {list.map((e, i) => (
+        <Row key={e.id} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: c.border, minHeight: 48 }}>
+          <Icon name={KIND_ICON[e.kind]} color={c.primary} size={18} />
+          <T v="caption" muted style={{ width: 46 }}>{new Date(e.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</T>
+          <T style={{ flex: 1 }}>{e.text}</T>
+          <IconButton name="close" label={`Undo: ${e.text}`} onPress={() => removeEntry(e.id)} color={c.textMuted} size={18} />
+        </Row>
+      ))}
+    </Card>
   );
 }
 
@@ -226,6 +266,8 @@ export default function Log() {
   const today = todayISO();
   const [date, setDate] = useState(today);
   const { c } = useTheme();
+  const [msg, setMsg] = useState<string | null>(null);
+  const [food, setFood] = useState(false);
   const [pain, setPain] = useState(false);
   const [red, setRed] = useState(false);
   const [craving, setCraving] = useState(false);
@@ -234,34 +276,29 @@ export default function Log() {
 
   return (
     <Screen>
-      <ScreenHeader title="Log" subtitle="Everything you track, in one place." />
+      <ScreenHeader title="Log" subtitle="Submit anything, anytime." />
       <Row style={{ justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border }}>
-        <IconButton name="left" label="Previous day" onPress={() => setDate(addDays(date, -1))} />
-        <T v="bodyStrong">{date === today ? `Today · ${formatShort(date)}` : formatLong(date)}</T>
-        <IconButton name="right" label="Next day" onPress={() => date < today && setDate(addDays(date, 1))} color={date < today ? c.text : c.border} />
+        <IconButton name="left" label="Previous day" onPress={() => { setDate(addDays(date, -1)); setMsg(null); }} />
+        <Pressable onPress={() => setDate(today)} accessibilityRole="button" accessibilityLabel="Back to today">
+          <T v="bodyStrong">{date === today ? `Today, ${formatShort(date)}` : formatLong(date)}</T>
+        </Pressable>
+        <IconButton name="right" label="Next day" onPress={() => { if (date < today) { setDate(addDays(date, 1)); setMsg(null); } }} color={date < today ? c.text : c.border} />
+      </Row>
+      {msg ? <Banner tone="success" icon="check" text={msg} onPress={() => setMsg(null)} /> : null}
+
+      <Row wrap>
+        <Button label="Add food" icon="plus" small onPress={() => setFood(true)} />
+        <Button label={`Craving${cravings ? ` (${cravings})` : ''}`} icon="bolt" small variant="secondary" onPress={() => { updateDay(date, { cravings: cravings + 1 }); setCraving(true); }} />
+        <Button label="Something hurt" icon="alert" small variant="secondary" onPress={() => setPain(true)} />
+        <Button label="Feel unwell" icon="heart" small variant="secondary" onPress={() => setRed(true)} />
       </Row>
 
-      <LogForm key={date} date={date} />
-      <BpCard date={date} />
+      <Inputs key={date} date={date} onDone={setMsg} />
 
-      <Section title="How are you feeling?">
-        <Row wrap>
-          <Chip
-            label={`I have a craving${cravings ? ` (${cravings})` : ''}`}
-            icon="bolt"
-            onPress={() => {
-              updateDay(date, { cravings: cravings + 1 });
-              setCraving(true);
-            }}
-          />
-          <Chip label="Something hurt" icon="alert" onPress={() => setPain(true)} />
-          <Chip label="Something feels wrong" icon="heart" onPress={() => setRed(true)} />
-        </Row>
-      </Section>
+      <SectionTitle>Submitted {date === today ? 'today' : formatShort(date)}</SectionTitle>
+      <Timeline date={date} />
 
-      <RecentDays date={date} onPick={setDate} />
-      <View style={{ height: space.lg }} />
-
+      <AddFoodSheet visible={food} onClose={() => setFood(false)} date={date} />
       <PainSheet visible={pain} onClose={() => setPain(false)} date={date} />
       <RedFlagSheet visible={red} onClose={() => setRed(false)} date={date} />
       <Sheet visible={craving} onClose={() => setCraving(false)} title="Craving? 10-minute routine">

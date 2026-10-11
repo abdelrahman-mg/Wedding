@@ -4,11 +4,11 @@ import { Icon, type IconName } from '../../ui/Icon';
 import { fonts, useTheme } from '../../ui/theme';
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
-  { name: 'index', title: 'Today', icon: 'today' },
+  { name: 'index', title: 'Home', icon: 'today' },
+  { name: 'food', title: 'Food', icon: 'food' },
+  { name: 'gym', title: 'Gym', icon: 'train' },
   { name: 'log', title: 'Log', icon: 'plus' },
-  { name: 'train', title: 'Train', icon: 'train' },
   { name: 'progress', title: 'Progress', icon: 'progress' },
-  { name: 'coach', title: 'Coach', icon: 'coach' },
 ];
 
 export default function TabLayout() {

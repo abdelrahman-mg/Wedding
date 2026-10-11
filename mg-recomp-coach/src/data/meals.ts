@@ -35,6 +35,8 @@ export const MEALS = {
   B2: { slot: 'B', name: '3-egg omelet plate', desc: '3-egg omelet with tomato and pepper (1 tsp oil); half baladi loaf; 1 Greek yogurt cup', kcal: 470, protein: 39 },
   B3: { slot: 'B', name: 'Oats bowl', desc: '5 tbsp oats, 1 scoop whey, 1 cup half-fat milk, 1 banana', kcal: 490, protein: 37 },
   B4: { slot: 'B', name: 'Egg and cheese loaf', desc: '1 baladi loaf, 2 scrambled eggs (1 tsp oil), a matchbox of low-fat white cheese, tomato and cucumber', kcal: 510, protein: 28 },
+  // Added on request: granola swap for the oats bowl (low-sugar granola, 1/4 cup keeps calories in line).
+  B5: { slot: 'B', name: 'Granola bowl', desc: '1/4 cup low-sugar granola, 1 scoop whey, 1 cup half-fat milk, 1 banana', kcal: 485, protein: 36 },
   // Work snack
   M1: { slot: 'M', name: 'Yogurt and apple', desc: '1 Greek yogurt cup (about 170 g), 1 small apple', kcal: 180, protein: 17 },
   M2: { slot: 'M', name: 'Eggs and cheese', desc: '2 boiled eggs, 1 low-fat cheese triangle, cucumber', kcal: 210, protein: 15 },

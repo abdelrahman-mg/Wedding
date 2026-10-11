@@ -12,6 +12,9 @@ import type {
   BpEntry,
   ChangeType,
   DayLog,
+  EntryKind,
+  ExtraFood,
+  LogEntry,
   ISODate,
   MealLog,
   PainFlag,
@@ -100,6 +103,30 @@ interface Store {
   addChat: (role: 'user' | 'coach', text: string) => void;
   clearChat: () => void;
   toggleHoliday: (sunday: ISODate) => void;
+
+  // log feed ("submit anything, anytime")
+  submit: (date: ISODate, kind: EntryKind, value: number | null, extra?: { text?: string; cardioType?: string; food?: Omit<ExtraFood, 'id' | 'time'>; bp?: Omit<BpEntry, 'id' | 'date'> }) => void;
+  removeEntry: (id: string) => void;
+  addExtra: (date: ISODate, food: Omit<ExtraFood, 'id' | 'time'>) => string;
+  removeExtra: (date: ISODate, id: string) => void;
+}
+
+const SET_FIELD: Partial<Record<EntryKind, 'steps' | 'sleep' | 'energy' | 'hunger'>> = { steps: 'steps', sleep: 'sleep', energy: 'energy', hunger: 'hunger' };
+
+function entryText(kind: EntryKind, value: number | null, extra?: { text?: string; cardioType?: string; food?: { name: string; kcal: number; protein: number }; bp?: { systolic: number; diastolic: number } }): string {
+  switch (kind) {
+    case 'weight': return `Weight ${value} kg`;
+    case 'waist': return `Waist ${value} cm`;
+    case 'steps': return `Steps ${value?.toLocaleString('en-US')}`;
+    case 'sleep': return `Slept ${value} h`;
+    case 'energy': return `Energy ${value}/5`;
+    case 'hunger': return `Hunger ${value}/5`;
+    case 'water': return `${value != null && value < 0 ? '−' : '+'}${Math.abs(value ?? 1)} glass of water`;
+    case 'cardio': return `Cardio +${value} min${extra?.cardioType ? ` (${extra.cardioType})` : ''}`;
+    case 'bp': return `BP ${extra?.bp?.systolic}/${extra?.bp?.diastolic}`;
+    case 'note': return `Note: ${extra?.text ?? ''}`;
+    case 'food': return `Ate ${extra?.food?.name} (${extra?.food?.kcal} kcal, ${extra?.food?.protein} g protein)`;
+  }
 }
 
 const emptyDay = (): DayLog => ({ meals: {}, water: 0 });
@@ -268,6 +295,79 @@ export const useApp = create<Store>()(
         incPlanB: () => mut((d) => ({ ...d, planBCount: d.planBCount + 1 })),
         addChat: (role, text) => mut((d) => ({ ...d, coachChat: [...d.coachChat.slice(-40), { role, text, date: Date.now() }] })),
         clearChat: () => mut((d) => ({ ...d, coachChat: [] })),
+        addExtra: (date, food) => {
+          const id = uid();
+          mut((d) => {
+            const cur = day(d, date);
+            return { ...d, dayLogs: { ...d.dayLogs, [date]: { ...cur, extras: [...(cur.extras ?? []), { ...food, id, time: Date.now() }] } } };
+          });
+          return id;
+        },
+        removeExtra: (date, id) =>
+          mut((d) => {
+            const cur = day(d, date);
+            return {
+              ...d,
+              dayLogs: { ...d.dayLogs, [date]: { ...cur, extras: (cur.extras ?? []).filter((x) => x.id !== id) } },
+              entries: d.entries.filter((e) => e.ref !== id),
+            };
+          }),
+        submit: (date, kind, value, extra) => {
+          const d0 = get().data;
+          const cur = day(d0, date);
+          const entry: LogEntry = { id: uid(), date, time: Date.now(), kind, value, text: entryText(kind, value, extra) };
+          if (kind === 'weight' || kind === 'waist') {
+            entry.prev = d0.body[date]?.[kind] ?? null;
+            get().setBody(date, { [kind]: value });
+          } else if (SET_FIELD[kind]) {
+            const f = SET_FIELD[kind] as 'steps' | 'sleep' | 'energy' | 'hunger';
+            entry.prev = (cur[f] as number | undefined) ?? null;
+            get().updateDay(date, { [f]: value ?? undefined });
+          } else if (kind === 'water') {
+            get().addWater(date, value ?? 1);
+          } else if (kind === 'cardio') {
+            get().updateDay(date, { cardioMinutes: (cur.cardioMinutes ?? 0) + (value ?? 0), cardioType: extra?.cardioType ?? cur.cardioType });
+          } else if (kind === 'note') {
+            const t = (extra?.text ?? '').trim();
+            get().updateDay(date, { note: cur.note ? `${cur.note}; ${t}` : t });
+          } else if (kind === 'food' && extra?.food) {
+            entry.ref = get().addExtra(date, extra.food);
+          } else if (kind === 'bp' && extra?.bp) {
+            const id = uid();
+            mut((d) => ({ ...d, bp: [...d.bp, { ...extra.bp!, id, date }] }));
+            entry.ref = id;
+          }
+          mut((d) => ({ ...d, entries: [...d.entries, entry].slice(-1500) }));
+        },
+        removeEntry: (id) => {
+          const d0 = get().data;
+          const e = d0.entries.find((x) => x.id === id);
+          if (!e) return;
+          const rest = d0.entries.filter((x) => x.id !== id);
+          const sameKind = rest.filter((x) => x.date === e.date && x.kind === e.kind && x.time < e.time);
+          const isLatest = !d0.entries.some((x) => x.id !== id && x.date === e.date && x.kind === e.kind && x.time > e.time);
+          const restoreTo = sameKind.length ? sameKind[sameKind.length - 1].value : e.prev ?? null;
+          if (e.kind === 'weight' || e.kind === 'waist') {
+            if (isLatest) get().setBody(e.date, { [e.kind]: restoreTo });
+          } else if (SET_FIELD[e.kind]) {
+            if (isLatest) get().updateDay(e.date, { [SET_FIELD[e.kind] as string]: restoreTo ?? undefined });
+          } else if (e.kind === 'water') {
+            get().addWater(e.date, -(e.value ?? 1));
+          } else if (e.kind === 'cardio') {
+            const cur = day(get().data, e.date);
+            get().updateDay(e.date, { cardioMinutes: Math.max(0, (cur.cardioMinutes ?? 0) - (e.value ?? 0)) });
+          } else if (e.kind === 'note') {
+            const cur = day(get().data, e.date);
+            const t = e.text.replace(/^Note: /, '');
+            const parts = (cur.note ?? '').split('; ').filter((p, i, a) => !(p === t && a.indexOf(t) === i));
+            get().updateDay(e.date, { note: parts.join('; ') || undefined });
+          } else if (e.kind === 'food' && e.ref) {
+            get().removeExtra(e.date, e.ref);
+          } else if (e.kind === 'bp' && e.ref) {
+            get().removeBp(e.ref);
+          }
+          mut((d) => ({ ...d, entries: d.entries.filter((x) => x.id !== id) }));
+        },
         toggleHoliday: (sunday) =>
           mut((d) => {
             const has = d.settings.holidayWeeks.includes(sunday);

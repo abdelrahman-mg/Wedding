@@ -113,3 +113,11 @@ describe('AI change parsing', () => {
     expect(parseChange('CHANGE: {"type":"fasting","value":1}', '2026-10-10').proposal).toBeNull();
   });
 });
+
+describe('migration v2 -> v3', () => {
+  test('adds the entry feed', () => {
+    const old: any = { ...defaultData(), schemaVersion: 2 };
+    delete old.entries;
+    expect(migrate(old).entries).toEqual([]);
+  });
+});

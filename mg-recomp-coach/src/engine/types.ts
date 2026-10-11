@@ -102,6 +102,8 @@ export interface DayLog {
   cravings?: number;
   /** Optional 20-minute walk after lifting (bonus points). */
   postLiftWalk?: boolean;
+  /** Food eaten outside the planned meal slots (snacks, extras). */
+  extras?: ExtraFood[];
   checkinDone?: boolean;
   morningSeen?: boolean;
 }
@@ -187,6 +189,30 @@ export interface RedFlagEntry {
   symptom: string;
 }
 
+export interface ExtraFood {
+  id: string;
+  name: string;
+  kcal: number;
+  protein: number;
+  time: number; // epoch ms
+  treat?: boolean;
+}
+
+export type EntryKind = 'weight' | 'waist' | 'steps' | 'sleep' | 'energy' | 'hunger' | 'water' | 'cardio' | 'bp' | 'note' | 'food';
+
+/** One submitted input, shown in the Log feed. The field it changed lives in dayLogs/body/bp as before. */
+export interface LogEntry {
+  id: string;
+  date: ISODate;
+  time: number; // epoch ms
+  kind: EntryKind;
+  value: number | null;
+  text: string;
+  /** For undo: the field value before this entry, or the id of the record it created. */
+  prev?: number | null;
+  ref?: string;
+}
+
 export interface AppData {
   schemaVersion: number;
   profile: Profile;
@@ -211,4 +237,5 @@ export interface AppData {
   celebrations: Record<string, boolean>;
   planBCount: number;
   coachChat: { role: 'user' | 'coach'; text: string; date: number }[];
+  entries: LogEntry[];
 }

@@ -1,5 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { CoachPanel, useCoachProposals } from '../../features/CoachPanel';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { addDays, diffDays, formatShort, todayISO, weekStart } from '../../engine/dates';
@@ -9,12 +10,12 @@ import { allMainLiftTrends } from '../../engine/strength';
 import { weightBand } from '../../engine/targets';
 import { useApp } from '../../store/useApp';
 import { LineChart } from '../../ui/LineChart';
-import { Banner, Button, Card, Chip, Empty, Row, Screen, ScreenHeader, SectionTitle, Stat, T } from '../../ui/kit';
+import { Banner, Button, Card, Chip, Empty, Row, Screen, ScreenHeader, SectionTitle, Segmented, Stat, T } from '../../ui/kit';
 import { space, useTheme } from '../../ui/theme';
 import { useUnits } from '../../ui/units';
 
 
-export default function Progress() {
+function StatsView() {
   const { c } = useTheme();
   const data = useApp((s) => s.data);
   const st = useApp.getState();
@@ -84,8 +85,7 @@ export default function Progress() {
   const weekX = (wk: { week: number }) => wk.week;
 
   return (
-    <Screen>
-      <ScreenHeader title="Progress" subtitle="Weekly averages, not single weigh-ins." />
+    <>
       {data.settings.demoMode ? <Banner tone="accent" icon="star" text="Demo mode: these charts use fake data." /> : null}
 
       <Row wrap gap={space.sm}>
@@ -129,7 +129,7 @@ export default function Progress() {
 
       <SectionTitle>Strength (estimated, Epley)</SectionTitle>
       {lifts.every((l) => l.series.length === 0) ? (
-        <Empty title="No lifts yet" text="Log your first workout in Train. Strength trends appear after two sessions." action="Go to Train" onPress={() => router.push('/train')} />
+        <Empty title="No lifts yet" text="Log your first workout in Gym. Strength trends appear after two sessions." action="Go to Gym" onPress={() => router.push('/gym')} />
       ) : (
         lifts.map((l) =>
           l.series.length ? (
@@ -235,6 +235,34 @@ export default function Progress() {
             </Row>
           ))
       )}
+    </>
+  );
+}
+
+type PTab = 'stats' | 'review' | 'ask';
+
+export default function Progress() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<PTab>((params.tab as PTab) ?? 'stats');
+  const [seenParam, setSeenParam] = useState(params.tab);
+  if (params.tab !== seenParam) {
+    setSeenParam(params.tab);
+    if (params.tab) setTab(params.tab as PTab);
+  }
+  const { review, pending } = useCoachProposals();
+  return (
+    <Screen>
+      <ScreenHeader title="Progress" subtitle={review.headline} />
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { label: 'Stats', value: 'stats' },
+          { label: `Coach review${pending.length ? ` (${pending.length})` : ''}`, value: 'review' },
+          { label: 'Ask coach', value: 'ask' },
+        ]}
+      />
+      {tab === 'stats' ? <StatsView /> : <CoachPanel tab={tab} />}
     </Screen>
   );
 }

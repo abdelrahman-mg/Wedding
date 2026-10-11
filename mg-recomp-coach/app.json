@@ -3,7 +3,7 @@
     "name": "MG Recomp Coach",
     "slug": "mg-recomp-coach",
     "scheme": "mgrecomp",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.mg.recompcoach",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0B6B6B",
         "foregroundImage": "./assets/android-icon-foreground.png",

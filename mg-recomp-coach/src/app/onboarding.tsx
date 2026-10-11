@@ -161,7 +161,7 @@ export default function Onboarding() {
             </T>
           </Card>
           <Banner tone="warning" text="BP not yet checked by a doctor: keep workouts moderate, no heavy straining or breath-holding." />
-          <T muted>Optional: record a baseline strength test in week 1 (Train tab) so week 12 can show your percent change.</T>
+          <T muted>Optional: record a baseline strength test in week 1 (Gym tab) so week 12 can show your percent change.</T>
         </>
       )}
 

@@ -10,7 +10,7 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
-**Ready-made APK:** download [`release/MG-Recomp-Coach-1.1.0.apk`](release/MG-Recomp-Coach-1.1.0.apk) on your phone and install it. It installs over 1.0.0 and keeps your data. To build your own instead, use one of the options below.
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.2.0.apk`](release/MG-Recomp-Coach-1.2.0.apk) on your phone and install it. It installs over 1.0.0 and 1.1.0 and keeps your data. To build your own instead, use one of the options below.
 
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 
@@ -83,7 +83,15 @@ Useful scripts:
 
 ## 3. What is in the app
 
-Bottom tabs: **Today, Log, Train, Progress, Coach**. **Plan & settings** opens from the Plan button at the top right of every tab.
+Bottom tabs: **Home, Food, Gym, Log, Progress**. **Plan & settings** opens from the Plan button at the top right of every tab.
+
+- **Home.** A dashboard: score and targets, water, the next meal (Ate it / Plan B), today's workout, the coach's headline and pending changes, the weekly rings, and Log / Check-in buttons.
+- **Food.** Today's meals (tap the circle when eaten; tap a row for Plan B or Skip), extra food eaten outside the plan, the weekly meal plan by day, the full meal library (including the B5 Granola bowl and the no-cooking meals), and links to shopping, meal prep, swaps and the plan editor.
+- **Gym.** Today's session (start, minimum version, walk fallback), then **All workouts**: every session with every exercise, this week's sets × reps, rest, RIR, cue, alternatives, your last numbers and the next progression step, and a "Start now" button. Also cardio, warm-up, mobility, history and the strength tests.
+- **Log.** Submit anything, anytime: each input (weight, steps, water, cardio, sleep, energy and hunger, waist, blood pressure, note, food) has its own Submit. A timeline lists everything submitted that day with an undo button.
+- **Progress.** Stats and charts, plus **Coach review** (the weekly rules engine and its Apply / Not now cards) and **Ask coach** (offline topics, the optional AI coach and the API key setup).
+
+The sections below describe each feature in detail.
 
 - **Onboarding (5 steps).** Welcome and privacy, baseline (175 cm, 110 kg, waist 115 cm, body fat about 37% marked as an estimate, age 26, start date), health checklist, reminder toggles and notification permission, the 12-week summary with the honest 1 kg per week ceiling.
 - **Today.**

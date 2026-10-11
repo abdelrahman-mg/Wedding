@@ -30,7 +30,8 @@ export type IconName =
   | 'copy'
   | 'cart'
   | 'down'
-  | 'up';
+  | 'up'
+  | 'food';
 
 export function Icon({ name, size = 22, color, strokeWidth = 2 }: { name: IconName; size?: number; color: string; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -107,6 +108,8 @@ export function Icon({ name, size = 22, color, strokeWidth = 2 }: { name: IconNa
             <Path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" {...p} />
           </>
         );
+      case 'food':
+        return <Path d="M7 3v8M5 3v5a2 2 0 004 0V3M7 11v10M17 3c-2 0-3 2-3 6s1 4 3 4v8" {...p} />;
       case 'bolt':
         return <Path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" {...p} />;
       case 'walk':

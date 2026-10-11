@@ -4,7 +4,7 @@ import { NUTRITION } from '../data/phases';
 import { DEFAULT_MEAL_PLAN, DEFAULT_SESSION_DAYS, DEFAULT_TREAT_DAY } from '../data/plan';
 import type { AppData, PlanState, ReminderId, ReminderSetting, Settings } from './types';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const DEFAULT_REMINDERS: Record<ReminderId, ReminderSetting> = {
   weighin: { enabled: true, time: '07:30' },
@@ -92,6 +92,7 @@ export function defaultData(): AppData {
     celebrations: {},
     planBCount: 0,
     coachChat: [],
+    entries: [],
   };
 }
 
@@ -99,6 +100,8 @@ type Migration = (d: any) => any;
 
 // Each migration upgrades from version N to N+1. Never edit an existing migration.
 const MIGRATIONS: Record<number, Migration> = {
+  // v2 -> v3: added the Log entry feed.
+  2: (d) => ({ ...d, entries: d.entries ?? [] }),
   // v1 -> v2: added coachChat, celebrations, restricted flags, reduceMotion.
   1: (d) => ({
     ...d,
