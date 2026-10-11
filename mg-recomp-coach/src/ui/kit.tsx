@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+import { router } from 'expo-router';
 import { useApp } from '../store/useApp';
 import { Icon, type IconName } from './Icon';
 import { radius, space, type, useTheme, type TypeVariant } from './theme';
@@ -482,3 +483,67 @@ export const num = (s: string): number | null => {
   const n = parseFloat(s.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 };
+
+// Screen header: big title, optional subtitle, actions on the right (Plan shortcut by default).
+export function ScreenHeader({ title, subtitle, right, planLink = true }: { title: string; subtitle?: string; right?: ReactNode; planLink?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginTop: space.xs }}>
+      <View style={{ flex: 1, paddingRight: space.sm }}>
+        <T v="display" numberOfLines={1}>{title}</T>
+        {subtitle ? <T muted>{subtitle}</T> : null}
+      </View>
+      <Row gap={4}>
+        {right}
+        {planLink ? (
+          <Pressable
+            onPress={() => router.push('/plan')}
+            accessibilityRole="button"
+            accessibilityLabel="Open plan and settings"
+            style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: space.md, borderRadius: 24, backgroundColor: c.surfaceAlt, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}
+          >
+            <Icon name="plan" color={c.primary} size={20} />
+            <T v="label" color={c.primary}>Plan</T>
+          </Pressable>
+        ) : null}
+      </Row>
+    </Row>
+  );
+}
+
+export interface AlertItem {
+  key: string;
+  tone: 'warning' | 'danger' | 'info' | 'success' | 'accent';
+  icon?: IconName;
+  text: string;
+  onPress?: () => void;
+}
+
+/** All of a screen's notices in one compact card instead of a stack of banners. */
+export function AlertStack({ items }: { items: AlertItem[] }) {
+  const { c } = useTheme();
+  if (!items.length) return null;
+  const colorFor = (t: AlertItem['tone']) =>
+    t === 'danger' ? c.danger : t === 'warning' ? c.warning : t === 'success' ? c.success : t === 'accent' ? c.accent : c.primary;
+  return (
+    <View style={{ backgroundColor: c.surface, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
+      {items.map((a, i) => {
+        const body = (
+          <Row style={{ paddingVertical: 10, paddingHorizontal: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: c.border, alignItems: 'flex-start' }}>
+            <View style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, backgroundColor: colorFor(a.tone) }} />
+            <Icon name={a.icon ?? 'alert'} size={18} color={colorFor(a.tone)} />
+            <T v="label" style={{ flex: 1 }}>{a.text}</T>
+            {a.onPress ? <Icon name="right" size={16} color={c.textMuted} /> : null}
+          </Row>
+        );
+        return a.onPress ? (
+          <Pressable key={a.key} onPress={a.onPress} accessibilityRole="button" accessibilityLabel={a.text}>
+            {body}
+          </Pressable>
+        ) : (
+          <View key={a.key}>{body}</View>
+        );
+      })}
+    </View>
+  );
+}

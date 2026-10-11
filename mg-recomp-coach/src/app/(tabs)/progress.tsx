@@ -9,7 +9,7 @@ import { allMainLiftTrends } from '../../engine/strength';
 import { weightBand } from '../../engine/targets';
 import { useApp } from '../../store/useApp';
 import { LineChart } from '../../ui/LineChart';
-import { Banner, Button, Card, Chip, Empty, Row, Screen, SectionTitle, Stat, T } from '../../ui/kit';
+import { Banner, Button, Card, Chip, Empty, Row, Screen, ScreenHeader, SectionTitle, Stat, T } from '../../ui/kit';
 import { space, useTheme } from '../../ui/theme';
 import { useUnits } from '../../ui/units';
 
@@ -85,8 +85,8 @@ export default function Progress() {
 
   return (
     <Screen>
-      <T v="display">Progress</T>
-      {data.settings.demoMode ? <Banner tone="accent" icon="star" text="DEMO MODE: these charts use fake data." /> : null}
+      <ScreenHeader title="Progress" subtitle="Weekly averages, not single weigh-ins." />
+      {data.settings.demoMode ? <Banner tone="accent" icon="star" text="Demo mode: these charts use fake data." /> : null}
 
       <Row wrap gap={space.sm}>
         <Stat label="Total lost (weekly avg)" value={fmtKg(lost)} />

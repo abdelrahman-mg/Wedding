@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { COACH_SCRIPTS, type ChipAction, type CoachScript } from '../../data/coachScripts';
 import { EATING_OUT_RULES } from '../../data/guides';
@@ -10,11 +10,12 @@ import { weeklyReport } from '../../engine/report';
 import { bpStatus, deloadProposal, painStatus, type Proposal } from '../../engine/rules';
 import { earlyDeload, runReview, weekFor } from '../../engine/selectors';
 import { isTriggeredDeload } from '../../engine/phase';
-import { askCoach, getApiKey, parseChange } from '../../services/aiCoach';
+import { askCoach, parseChange } from '../../services/aiCoach';
+import { AiKeyCard, useHasApiKey } from '../../features/AiKeyCard';
 import { useApp } from '../../store/useApp';
 import { limitCtxFor } from '../../features/limitCtx';
 import { PainSheet } from '../../features/SafetySheets';
-import { Banner, Button, Card, Chip, Field, Row, Screen, SectionTitle, Sheet, T } from '../../ui/kit';
+import { AlertStack, Banner, Button, Card, Chip, Field, Row, Screen, ScreenHeader, Segmented, Sheet, T, type AlertItem } from '../../ui/kit';
 import { radius, space, useTheme } from '../../ui/theme';
 
 function ProposalCard({ p, onApply, onLater, error }: { p: Proposal; onApply: () => void; onLater: () => void; error?: string }) {
@@ -44,13 +45,11 @@ export default function Coach() {
   const [pain, setPain] = useState(false);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
-  const [hasKey, setHasKey] = useState(false);
+  const [hasKey, setHasKey] = useHasApiKey();
   const [copied, setCopied] = useState(false);
   const [aiProposal, setAiProposal] = useState<Proposal | null>(null);
 
-  useEffect(() => {
-    getApiKey().then((k) => setHasKey(!!k));
-  }, [data.settings.aiEnabled]);
+  const [tab, setTab] = useState<'review' | 'ask'>('review');
 
   const review = useMemo(() => runReview(data, today), [data, today]);
   const deload = useMemo(() => earlyDeload(data, today), [data, today]);
@@ -129,127 +128,145 @@ export default function Coach() {
       if (s) {
         st.addChat('coach', `${s.title}\n• ${s.lines.join('\n• ')}`);
       } else {
-        st.addChat('coach', 'I’m the offline coach, so I answer with the quick-action chips above. For a deeper review, copy your weekly report and paste it into a Claude chat, or add your own API key in Settings.');
+        st.addChat('coach', 'I’m the offline coach, so I can only answer the quick topics above. Connect the AI coach below to ask anything, or copy your weekly report into a Claude chat.');
       }
     }
   };
 
   const m = review.metrics;
+  const aiOn = data.settings.aiEnabled && !!hasKey;
+
+  const health: AlertItem[] = [];
+  if (data.settings.demoMode) health.push({ key: 'demo', tone: 'accent', icon: 'star', text: 'Demo mode: the coach is reading fake data.' });
+  for (const p of pains) {
+    health.push({
+      key: `pain-${p.part}`,
+      tone: 'danger',
+      text: `${p.part === 'knee' ? 'Knee' : 'Shoulder'}: ${p.count} pain flags in 14 days. See an orthopedist or physio before loading it again.${data.settings.restricted[p.part] ? ' Exercises paused.' : ' Tap to pause those exercises.'}`,
+      onPress: () => st.setSettings({ restricted: { ...data.settings.restricted, [p.part]: true } }),
+    });
+  }
+  if (bp.level === 'urgent' || bp.level === 'doctorSoon') health.push({ key: 'bp', tone: bp.level === 'urgent' ? 'danger' : 'warning', text: bp.message, onPress: () => router.push('/health') });
+  if (!data.checklist.doctor_bp?.done || !data.checklist.lab_hba1c?.done)
+    health.push({ key: 'labs', tone: 'warning', icon: 'heart', text: 'Doctor and labs: BP check, fasting glucose, HbA1c, lipids, ALT/AST, creatinine, vitamin D.', onPress: () => router.push('/health') });
 
   return (
     <Screen>
-      <T v="display">Coach</T>
-      {data.settings.demoMode ? <Banner tone="accent" icon="star" text="DEMO MODE: the coach is reading fake data." /> : null}
-
-      {/* What the data says */}
-      <Card>
-        <T v="caption" muted>WHAT THE DATA SAYS · WEEK {Math.min(12, week)}</T>
-        <T v="title">{review.headline}</T>
-        {review.messages.map((msg, i) => (
-          <T key={i}>{msg}</T>
-        ))}
-        {m.latestAvg != null ? (
-          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: space.md, gap: 2 }}>
-            <T v="label">Last week average: {m.latestAvg} kg (band {m.bandLow}–{m.bandHigh}, expected {m.expected})</T>
-            <T v="label">Rate: {m.ratePerWeek != null ? `${m.ratePerWeek.toFixed(2)} kg/week` : '–'} · distance from expected: {m.distanceFromBand != null ? `${m.distanceFromBand > 0 ? '+' : ''}${m.distanceFromBand} kg` : '–'}</T>
-            <T v="label">Week-12 projection (estimate): {m.projectedWeek12 ?? '–'} kg</T>
-          </View>
-        ) : null}
-        <T v="caption" muted>Reviews run every Sunday 20:00 and whenever you open this tab. Changes are proposed from week 3. Safe maximum: about 1 kg per week.</T>
-      </Card>
-
-      {/* Proposals */}
-      {visible.map((p) => (
-        <ProposalCard key={p.id} p={p} error={errors[p.id]} onApply={() => apply(p)} onLater={() => st.dismiss(p.id, today)} />
-      ))}
-      {data.planChanges.some((p) => !p.undone) ? <Button label="Undo the most recent change" variant="ghost" small onPress={() => st.undoLastChange()} /> : null}
-
-      {/* Safety cards */}
-      {pains.map((p) => (
-        <Card key={p.part} tone="danger">
-          <T v="heading">{p.part === 'knee' ? 'Knee' : 'Shoulder'}: {p.count} pain flags in 14 days</T>
-          <T>See an orthopedist or physio before loading this area again. The app can hide those exercises until you are cleared.</T>
-          <Button
-            label={data.settings.restricted[p.part] ? 'Exercises paused (unpause in Settings)' : `Pause ${p.part} exercises`}
-            variant="secondary"
-            onPress={() => st.setSettings({ restricted: { ...data.settings.restricted, [p.part]: true } })}
-          />
-        </Card>
-      ))}
-      {bp.level === 'urgent' || bp.level === 'doctorSoon' ? <Banner tone={bp.level === 'urgent' ? 'danger' : 'warning'} text={bp.message} onPress={() => router.push('/health')} /> : null}
-      {!data.checklist.doctor_bp?.done || !data.checklist.lab_hba1c?.done ? (
-        <Card tone="warning" onPress={() => router.push('/health')} accessibilityLabel="Open health checks">
-          <T v="heading">Doctor and labs</T>
-          <T>Ask for: BP check, fasting glucose, HbA1c, lipid profile, ALT/AST, creatinine, vitamin D. Tick them off in Health checks.</T>
-        </Card>
-      ) : null}
-      {!data.seenCards.snoring && !data.checklist.snoring_discussed?.done ? (
-        <Card tone="alt">
-          <T v="heading">About the snoring</T>
-          <T>Heavy snoring can mean sleep apnea, which raises blood pressure and makes fat loss harder. Ask your doctor whether a sleep study makes sense.</T>
-          <Row>
-            <Button label="Discussed" small onPress={() => st.toggleChecklist('snoring_discussed', today)} flex />
-            <Button label="Dismiss" small variant="ghost" onPress={() => st.markSeen('snoring')} flex />
-          </Row>
-        </Card>
-      ) : null}
-
-      {/* Ask the coach */}
-      <SectionTitle>Ask the coach</SectionTitle>
-      <Row wrap>
-        {COACH_SCRIPTS.map((s) => (
-          <Chip key={s.id} label={s.chip} onPress={() => setScript(s)} />
-        ))}
-      </Row>
-      {data.coachChat.length ? (
-        <Card>
-          {data.coachChat.slice(-10).map((m2, i) => (
-            <View
-              key={i}
-              style={{
-                alignSelf: m2.role === 'user' ? 'flex-end' : 'flex-start',
-                backgroundColor: m2.role === 'user' ? c.primary : c.surfaceAlt,
-                borderRadius: radius.md,
-                padding: space.md,
-                maxWidth: '88%',
-              }}
-            >
-              <T color={m2.role === 'user' ? c.onPrimary : c.text}>{m2.text}</T>
-            </View>
-          ))}
-          <Button label="Clear chat" small variant="ghost" onPress={() => st.clearChat()} />
-        </Card>
-      ) : null}
-      <Field label={data.settings.aiEnabled && hasKey ? 'Ask (AI coach: sends a 14-day summary)' : 'Ask (offline)'} value={q} onChange={setQ} keyboard="default" placeholder="e.g. I’m exhausted today" />
-      {aiProposal && !data.dismissed[aiProposal.id] ? (
-        <ProposalCard
-          p={aiProposal}
-          error={errors[aiProposal.id]}
-          onApply={() => {
-            apply(aiProposal);
-          }}
-          onLater={() => {
-            st.dismiss(aiProposal.id, today);
-            setAiProposal(null);
-          }}
-        />
-      ) : null}
-      {busy ? <ActivityIndicator color={c.primary} /> : <Button label="Send" onPress={send} disabled={!q.trim()} />}
-      <T v="caption" muted>
-        {data.settings.aiEnabled && hasKey
-          ? 'AI coach is on: your question and a compact 14-day summary are sent to Anthropic only when you press Send. Suggested changes still go through the Apply cards and the hard limits.'
-          : 'Offline: nothing leaves your phone. Optional AI coach in Plan > Settings (your own API key).'}
-      </T>
-      <Button
-        label={copied ? 'Copied!' : 'Copy weekly report'}
-        icon={copied ? 'check' : 'copy'}
-        variant="secondary"
-        onPress={async () => {
-          await Clipboard.setStringAsync(weeklyReport(data, addDays(weekStart(today), -7)));
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2500);
-        }}
+      <ScreenHeader title="Coach" subtitle={`Week ${Math.min(12, week)} · ${review.headline}`} />
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        options={[
+          { label: `Weekly review${visible.length ? ` (${visible.length})` : ''}`, value: 'review' },
+          { label: 'Ask the coach', value: 'ask' },
+        ]}
       />
+
+      {tab === 'review' ? (
+        <>
+          <Card>
+            <T v="caption" muted>WHAT THE DATA SAYS</T>
+            <T v="title">{review.headline}</T>
+            {review.messages.map((msg, i) => (
+              <T key={i}>{msg}</T>
+            ))}
+            {m.latestAvg != null ? (
+              <View style={{ backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: space.md, gap: 2 }}>
+                <T v="label">Last week: {m.latestAvg} kg · band {m.bandLow}–{m.bandHigh}</T>
+                <T v="label">Rate: {m.ratePerWeek != null ? `${m.ratePerWeek.toFixed(2)} kg/week` : '–'} · vs expected: {m.distanceFromBand != null ? `${m.distanceFromBand > 0 ? '+' : ''}${m.distanceFromBand} kg` : '–'}</T>
+                <T v="label">Week 12 (estimate): {m.projectedWeek12 ?? '–'} kg</T>
+              </View>
+            ) : null}
+            <T v="caption" muted>Updates every Sunday 20:00 and when you open this tab. Changes are proposed from week 3. Safe maximum: about 1 kg a week.</T>
+          </Card>
+
+          {visible.map((p) => (
+            <ProposalCard key={p.id} p={p} error={errors[p.id]} onApply={() => apply(p)} onLater={() => st.dismiss(p.id, today)} />
+          ))}
+          {data.planChanges.some((p) => !p.undone) ? <Button label="Undo the most recent change" variant="ghost" small onPress={() => st.undoLastChange()} /> : null}
+
+          <AlertStack items={health} />
+          {!data.seenCards.snoring && !data.checklist.snoring_discussed?.done ? (
+            <Card tone="alt">
+              <T v="bodyStrong">About the snoring</T>
+              <T>Heavy snoring can mean sleep apnea, which raises blood pressure and makes fat loss harder. Ask your doctor whether a sleep study makes sense.</T>
+              <Row>
+                <Button label="Discussed" small onPress={() => st.toggleChecklist('snoring_discussed', today)} flex />
+                <Button label="Dismiss" small variant="ghost" onPress={() => st.markSeen('snoring')} flex />
+              </Row>
+            </Card>
+          ) : null}
+
+          <Button
+            label={copied ? 'Copied!' : 'Copy weekly report'}
+            icon={copied ? 'check' : 'copy'}
+            variant="secondary"
+            onPress={async () => {
+              await Clipboard.setStringAsync(weeklyReport(data, addDays(weekStart(today), -7)));
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2500);
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <T v="label" muted>Quick topics (work offline)</T>
+          <Row wrap>
+            {COACH_SCRIPTS.map((s) => (
+              <Chip key={s.id} label={s.chip} onPress={() => setScript(s)} />
+            ))}
+          </Row>
+
+          {data.coachChat.length ? (
+            <Card>
+              {data.coachChat.slice(-10).map((m2, i) => (
+                <View
+                  key={i}
+                  style={{
+                    alignSelf: m2.role === 'user' ? 'flex-end' : 'flex-start',
+                    backgroundColor: m2.role === 'user' ? c.primary : c.surfaceAlt,
+                    borderRadius: radius.md,
+                    padding: space.md,
+                    maxWidth: '88%',
+                  }}
+                >
+                  <T color={m2.role === 'user' ? c.onPrimary : c.text}>{m2.text}</T>
+                </View>
+              ))}
+              <Button label="Clear chat" small variant="ghost" onPress={() => st.clearChat()} />
+            </Card>
+          ) : null}
+
+          {aiProposal && !data.dismissed[aiProposal.id] ? (
+            <ProposalCard
+              p={aiProposal}
+              error={errors[aiProposal.id]}
+              onApply={() => apply(aiProposal)}
+              onLater={() => {
+                st.dismiss(aiProposal.id, today);
+                setAiProposal(null);
+              }}
+            />
+          ) : null}
+
+          <Field
+            label={aiOn ? 'Your question (AI coach)' : 'Your question (offline)'}
+            value={q}
+            onChange={setQ}
+            keyboard="default"
+            multiline
+            placeholder="e.g. Can I swap the oats bowl for granola?"
+          />
+          {busy ? <ActivityIndicator color={c.primary} /> : <Button label="Send" icon="right" onPress={send} disabled={!q.trim()} />}
+          <T v="caption" muted>
+            {aiOn
+              ? 'Sends your question and a short 14-day summary to Anthropic. Suggested plan changes still need your Apply and stay inside the safety limits.'
+              : 'Offline: nothing leaves your phone.'}
+          </T>
+
+          <AiKeyCard onChange={(v) => setHasKey(v)} />
+        </>
+      )}
 
       <Sheet visible={!!script} onClose={() => setScript(null)} title={script?.title ?? ''}>
         {script?.lines.map((l, i) => (

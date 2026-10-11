@@ -24,6 +24,6 @@ test('after onboarding the tabs render', async () => {
   d.profile = { ...d.profile, onboarded: true, startDate: todayISO() };
   useApp.setState({ data: d, hydrated: true, active: null });
   await renderRouter(APP, { initialUrl: '/' });
-  expect(await screen.findByText(/Good (morning|afternoon|evening), MG/)).toBeTruthy();
-  for (const tab of ['Today', 'Train', 'Progress', 'Coach', 'Plan']) expect(screen.getAllByText(tab).length).toBeGreaterThan(0);
+  expect(await screen.findByText(/Hi, MG/)).toBeTruthy();
+  for (const tab of ['Today', 'Log', 'Train', 'Progress', 'Coach']) expect(screen.getAllByText(tab).length).toBeGreaterThan(0);
 });

@@ -9,7 +9,7 @@ import { useApp } from '../../store/useApp';
 import { WorkoutView } from '../../features/Workout';
 import { SafetyButtons } from '../../features/SafetySheets';
 import { Icon } from '../../ui/Icon';
-import { Banner, Button, Card, Chip, Field, num, Row, Screen, SectionTitle, Sheet, T, ToggleRow } from '../../ui/kit';
+import { Banner, Button, Card, Chip, Field, num, Row, Screen, ScreenHeader, SectionTitle, Sheet, T, ToggleRow } from '../../ui/kit';
 import { space, useTheme } from '../../ui/theme';
 
 function Collapsible({ title, items, defaultOpen = false }: { title: string; items: string[]; defaultOpen?: boolean }) {
@@ -146,13 +146,10 @@ export default function Train() {
 
   return (
     <Screen>
-      <T v="display">Train</T>
-      <T muted>
-        Week {ctx.roadmapWeek} · {ctx.phaseName} · {liftingModeLabel(ctx.roadmapWeek, deload)}
-      </T>
+      <ScreenHeader title="Train" subtitle={`Week ${ctx.roadmapWeek} · ${ctx.phaseName} · ${liftingModeLabel(ctx.roadmapWeek, deload)}`} />
       {deload ? <Banner tone="info" icon="moon" text="Deload week: lighter on purpose." /> : null}
       {done ? <Banner tone="success" icon="check" text={`Done today: ${done === 'full' ? 'full workout' : done === 'minimum' ? 'minimum version' : 'walk fallback'}. Recovery now: protein, water, sleep.`} /> : null}
-      {ctx.isGym ? (
+      {ctx.isGym && done ? (
         <Card tone="alt">
           <ToggleRow
             label="Optional: 20-min walk after lifting"

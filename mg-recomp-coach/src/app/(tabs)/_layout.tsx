@@ -5,10 +5,10 @@ import { fonts, useTheme } from '../../ui/theme';
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Today', icon: 'today' },
+  { name: 'log', title: 'Log', icon: 'plus' },
   { name: 'train', title: 'Train', icon: 'train' },
   { name: 'progress', title: 'Progress', icon: 'progress' },
   { name: 'coach', title: 'Coach', icon: 'coach' },
-  { name: 'plan', title: 'Plan', icon: 'plan' },
 ];
 
 export default function TabLayout() {

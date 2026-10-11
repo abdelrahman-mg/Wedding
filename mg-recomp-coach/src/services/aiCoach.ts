@@ -1,5 +1,6 @@
 // Optional AI coach. Off by default. Only runs when the user saves their own API key
 // and presses Send. Sends a compact 14-day summary to the Anthropic Messages API.
+import Anthropic from '@anthropic-ai/sdk';
 import * as SecureStore from 'expo-secure-store';
 import { addDays } from '../engine/dates';
 import { containsForbiddenAdvice } from '../engine/limits';
@@ -112,54 +113,63 @@ If (and only if) you recommend one concrete change, end with one line exactly li
 CHANGE: {"type":"stepsAdjust|kcalAdjust|cardioAdjust|proteinTarget","value":<new total adjustment number>,"reason":"<short reason>"}
 Any chest pain, fainting, severe dizziness, unusual breathlessness or palpitations: tell him to stop and seek medical care (Egypt ambulance 123).`;
 
+function client(apiKey: string) {
+  // The key is the user's own, typed on their own phone and kept in secure storage.
+  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true, timeout: 45_000, maxRetries: 1 });
+}
+
+function friendlyError(e: unknown): Error {
+  if (e instanceof Anthropic.AuthenticationError) return new Error('The API key was rejected. Check that you copied the whole key (it starts with sk-ant-).');
+  if (e instanceof Anthropic.PermissionDeniedError) return new Error('This key has no access to the coach model. Check your Anthropic workspace settings.');
+  if (e instanceof Anthropic.RateLimitError) return new Error('Rate limited. Try again in a minute.');
+  if (e instanceof Anthropic.APIConnectionTimeoutError) return new Error('The request timed out. Check your connection.');
+  if (e instanceof Anthropic.APIConnectionError) return new Error('No connection. The offline coach and the weekly report still work.');
+  if (e instanceof Anthropic.APIError) return new Error(`The AI coach returned an error (${e.status ?? 'unknown'}). Try again later.`);
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+/** Checks a key without spending tokens: looks up the coach model with it. */
+export async function testApiKey(key: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await client(key.trim()).models.retrieve(AI_MODEL);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: friendlyError(e).message };
+  }
+}
+
 export async function askCoach(data: AppData, today: ISODate, question: string): Promise<string> {
   const key = await getApiKey();
-  if (!key) throw new Error('No API key saved. Add one in Plan > Settings > AI coach.');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  if (!key) throw new Error('No API key saved yet. Add yours in the Coach tab under "AI coach".');
+  let response;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        max_tokens: 700,
-        system: SYSTEM,
-        messages: [
-          {
-            role: 'user',
-            content: `My data (JSON):\n${JSON.stringify(buildSummary(data, today))}\n\nMy question: ${question}`,
-          },
-        ],
-      }),
+    response = await client(key).beta.messages.create({
+      model: AI_MODEL,
+      max_tokens: 4000,
+      output_config: { effort: 'low' },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      system: SYSTEM,
+      messages: [
+        {
+          role: 'user',
+          content: `My data (JSON):\n${JSON.stringify(buildSummary(data, today))}\n\nMy question: ${question}`,
+        },
+      ],
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      if (res.status === 401) throw new Error('The API key was rejected. Check it in Settings.');
-      if (res.status === 429) throw new Error('Rate limited. Try again in a minute.');
-      throw new Error(`The AI coach returned an error (${res.status}). ${body.slice(0, 120)}`);
-    }
-    const json = await res.json();
-    const text: string = (json.content ?? [])
-      .filter((b: any) => b.type === 'text')
-      .map((b: any) => b.text)
-      .join('\n')
-      .trim();
-    if (!text) throw new Error('Empty reply from the AI coach.');
-    if (containsForbiddenAdvice(text)) {
-      return text + '\n\n[App note: part of this reply mentions something outside your plan’s safety rules (no HIIT, running, jumping, fat burners or detox). Ignore that part.]';
-    }
-    return text;
-  } catch (e: any) {
-    if (e?.name === 'AbortError') throw new Error('The request timed out. Check your connection.');
-    if (e instanceof TypeError) throw new Error('No connection. The offline coach and the weekly report still work.');
-    throw e;
-  } finally {
-    clearTimeout(timer);
+  } catch (e) {
+    throw friendlyError(e);
   }
+  if (response.stop_reason === 'refusal') {
+    throw new Error('The AI coach could not answer that one. Try rephrasing, or use the quick-action chips.');
+  }
+  const text = response.content
+    .map((b) => (b.type === 'text' ? b.text : ''))
+    .join('\n')
+    .trim();
+  if (!text) throw new Error('Empty reply from the AI coach.');
+  if (containsForbiddenAdvice(text)) {
+    return text + '\n\n[App note: part of this reply mentions something outside your plan’s safety rules (no HIIT, running, jumping, fat burners or detox). Ignore that part.]';
+  }
+  return text;
 }

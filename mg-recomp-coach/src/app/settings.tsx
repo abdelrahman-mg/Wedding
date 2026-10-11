@@ -1,27 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert } from 'react-native';
 import { DISCLAIMER } from '../data/guides';
 import { todayISO } from '../engine/dates';
-import { getApiKey, setApiKey, AI_MODEL } from '../services/aiCoach';
+import { AiKeyCard } from '../features/AiKeyCard';
 import { buildDemoData } from '../services/demo';
 import { exportBackup, pickBackup } from '../services/files';
 import { disableDemo, enableDemo, REAL_BACKUP_KEY, STORAGE_KEY, useApp } from '../store/useApp';
-import { Banner, Button, Card, Field, Screen, SectionTitle, Segmented, T, ToggleRow } from '../ui/kit';
+import { Banner, Button, Card, Screen, SectionTitle, Segmented, T, ToggleRow } from '../ui/kit';
 
 export default function Settings() {
   const data = useApp((s) => s.data);
   const st = useApp.getState();
   const s = data.settings;
-  const [key, setKey] = useState('');
-  const [hasKey, setHasKey] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    getApiKey().then((k) => setHasKey(!!k));
-  }, []);
 
   const doExport = async (label: string, payload: unknown = data) => {
     try {
@@ -111,35 +105,7 @@ export default function Settings() {
       </Card>
 
       <SectionTitle>AI coach (optional)</SectionTitle>
-      <Card>
-        <T>
-          Off by default. With your own Anthropic API key, “Ask the coach” sends a compact summary of your last 14 days and your question to the Anthropic API ({AI_MODEL}). Data leaves the phone only when you press Send.
-        </T>
-        <ToggleRow label="Use the AI coach" value={s.aiEnabled} onChange={(v) => st.setSettings({ aiEnabled: v })} />
-        <Field label={hasKey ? 'API key saved (enter a new one to replace)' : 'Anthropic API key'} value={key} onChange={setKey} keyboard="default" secure />
-        <Button
-          label="Save key"
-          small
-          disabled={key.trim().length < 20}
-          onPress={async () => {
-            await setApiKey(key);
-            setKey('');
-            setHasKey(true);
-            setMsg('API key saved in secure storage.');
-          }}
-        />
-        {hasKey ? (
-          <Button
-            label="Delete key"
-            small
-            variant="ghost"
-            onPress={async () => {
-              await setApiKey(null);
-              setHasKey(false);
-            }}
-          />
-        ) : null}
-      </Card>
+      <AiKeyCard />
 
       <SectionTitle>Backup</SectionTitle>
       <Card>

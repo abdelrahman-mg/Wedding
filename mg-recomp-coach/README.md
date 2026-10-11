@@ -10,6 +10,8 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.1.0.apk`](release/MG-Recomp-Coach-1.1.0.apk) on your phone and install it. It installs over 1.0.0 and keeps your data. To build your own instead, use one of the options below.
+
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 
 ```bash
@@ -81,7 +83,7 @@ Useful scripts:
 
 ## 3. What is in the app
 
-Bottom tabs: **Today, Train, Progress, Coach, Plan**.
+Bottom tabs: **Today, Log, Train, Progress, Coach**. **Plan & settings** opens from the Plan button at the top right of every tab.
 
 - **Onboarding (5 steps).** Welcome and privacy, baseline (175 cm, 110 kg, waist 115 cm, body fat about 37% marked as an estimate, age 26, start date), health checklist, reminder toggles and notification permission, the 12-week summary with the honest 1 kg per week ceiling.
 - **Today.**
@@ -89,7 +91,12 @@ Bottom tabs: **Today, Train, Progress, Coach, Plan**.
   - Targets card: kcal, protein, steps and water in 250 ml glasses.
   - Weekly goal rings: workouts (4), days on plan (7), average steps vs target, and weigh-ins.
   - Meal slots with **Ate it**, **Plan B** and **Skip**. Plan B is a bottom sheet with same-slot alternatives sorted by closeness, the emergency meals, the ingredient table and "Log something else", all with a live kcal and protein comparison and the effect on the day total.
-  - Quick log, oil-rule tracker, craving helper, "Something hurt" and "Something feels wrong" buttons.
+  - Meals are compact rows: tap the circle when eaten, tap the row for details, Plan B or Skip. The next meal opens by default.
+  - All notices (demo mode, BP, deload, holiday) sit together in one alert card.
+- **Log.** One place for every input:
+  - Body (weight, waist), activity (steps, cardio minutes and type, post-lift walk), recovery (sleep, energy, hunger) and notes, saved with one Save button.
+  - Water and oil counters, blood-pressure readings with the BP status, and the craving, "Something hurt" and "Something feels wrong" buttons.
+  - A last-7-days table: tap a day to edit it.
   - Morning check-in before 11:00 and the end-of-day check-in.
 - **Train.**
   - Today's session with the phase banner, estimated duration and progress bar.
@@ -133,7 +140,7 @@ Design: Nile-teal and emerald primary colors with an amber accent for streaks an
 | Reminders | DATE triggers for the next 14 days, built from each day's planned meal names. They are rescheduled on every app open and after any plan or setting change (debounced). The four Android channels are meals, training, check-ins and sleep. "Snooze all 24 h" is supported. A water nudge within 20 minutes of another reminder is dropped so notifications never stack. |
 | Post-lift walk | The optional 20-minute walk after lifting is a toggle in Train on gym days, worth +2 bonus points (the day score still caps at 100). |
 | Shopping list | Default quantities from the brief. If you edit the plan, the countable items (eggs, yogurt, whey, bread, bananas, apples, sweet potatoes) are rescaled from per-meal counts. Other items show the default with a note. |
-| AI coach | Off by default. The key is stored in `expo-secure-store`. The app sends a compact 14-day JSON summary to the Anthropic Messages API (`claude-sonnet-5-5`). If the reply contains a `CHANGE:` line, it becomes a normal Apply / Not now card validated against the hard limits. Replies that mention forbidden content (HIIT, fat burners and so on) get a warning appended. |
+| AI coach | Off by default. Connect it in Coach > Ask the coach (or Settings): open the Anthropic Console, create a key, paste it, and tap Save and test (the app checks the key with a free model lookup). The key is stored in `expo-secure-store`. Calls use the official `@anthropic-ai/sdk` with low effort and server-side refusal fallbacks. The app sends a compact 14-day JSON summary to the Anthropic Messages API (`claude-sonnet-5-5`). If the reply contains a `CHANGE:` line, it becomes a normal Apply / Not now card validated against the hard limits. Replies that mention forbidden content (HIIT, fat burners and so on) get a warning appended. |
 | Demo mode | Settings > Demo mode stashes your real data under a separate key, loads 4 weeks of generated logs, and restores the real data untouched when you turn it off. Anything you log while in demo mode is discarded. |
 
 ---

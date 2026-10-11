@@ -4,7 +4,8 @@ import Today from '../src/app/(tabs)/index';
 import Train from '../src/app/(tabs)/train';
 import Progress from '../src/app/(tabs)/progress';
 import Coach from '../src/app/(tabs)/coach';
-import Plan from '../src/app/(tabs)/plan';
+import Plan from '../src/app/plan';
+import Log from '../src/app/(tabs)/log';
 import Onboarding from '../src/app/onboarding';
 import Checkin from '../src/app/checkin';
 import EditMeals from '../src/app/edit-meals';
@@ -37,6 +38,7 @@ const routes: Record<string, React.ComponentType<any>> = {
   progress: Progress,
   coach: Coach,
   plan: Plan,
+  log: Log,
   onboarding: Onboarding,
   checkin: Checkin,
   'edit-meals': EditMeals,
@@ -61,6 +63,7 @@ const expectations: Record<string, RegExp> = {
   '/progress': /Progress/,
   '/coach': /WHAT THE DATA SAYS/,
   '/plan': /12-week roadmap/,
+  '/log': /Everything you track/,
   '/onboarding': /Hey MG/,
   '/checkin': /Quick questions/,
   '/edit-meals': /Treat lunch day/,
@@ -152,5 +155,36 @@ describe('interactions', () => {
     await fireEvent.changeText(await screen.findByLabelText('Type my own'), 'Bench dips');
     await fireEvent.press(screen.getByText('Use my own'));
     expect(screen.getByText(/Blocked: Dips/)).toBeTruthy();
+  });
+});
+
+describe('log tab and AI setup', () => {
+  const fresh = () => ({ ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } });
+
+  test('the Log tab saves body, activity and recovery in one go', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/log' });
+    await fireEvent.changeText(screen.getByLabelText('Weight'), '108.4');
+    await fireEvent.changeText(screen.getByLabelText('Steps'), '7200');
+    await fireEvent.changeText(screen.getByLabelText('Sleep last night'), '7.5');
+    await fireEvent.press(screen.getByLabelText('Energy (1 = drained, 5 = great): 4'));
+    await fireEvent.press(screen.getByText('Save'));
+    const d = useApp.getState().data;
+    expect(d.body[todayISO()]?.weight).toBe(108.4);
+    expect(d.dayLogs[todayISO()]?.steps).toBe(7200);
+    expect(d.dayLogs[todayISO()]?.sleep).toBe(7.5);
+    expect(d.dayLogs[todayISO()]?.energy).toBe(4);
+    expect(screen.getByText(/Saved for/)).toBeTruthy();
+  });
+
+  test('Coach shows the AI key setup under Ask the coach', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/coach' });
+    await fireEvent.press(screen.getByLabelText('Ask the coach'));
+    expect(await screen.findByText(/Connect the AI coach/)).toBeTruthy();
+    expect(screen.getByText('Open Anthropic Console')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('API key'), 'not-a-real-key-123456789');
+    await fireEvent.press(screen.getByText('Save and test'));
+    expect(screen.getByText(/Keys start with sk-ant-/)).toBeTruthy();
   });
 });
