@@ -110,7 +110,7 @@ export function buildSchedule(data: AppData, now: Date = new Date()): Planned[] 
     }
     if (r.checkin.enabled) out.push({ at: at(date, r.checkin.time), title: 'End-of-day check-in', body: 'Two minutes: score, protein gap, tomorrow.', channel: 'checkins', url: '/checkin' });
     if (r.bedtime.enabled) out.push({ at: at(date, r.bedtime.time), title: 'Bedtime', body: 'Screens down. Lights off by 23:30.', channel: 'sleep' });
-    if (r.review.enabled && dow === 0) out.push({ at: at(date, r.review.time), title: 'Weekly review', body: 'Your week is in. See what the data says.', channel: 'checkins', url: '/progress?tab=review' });
+    if (r.review.enabled && dow === 0) out.push({ at: at(date, r.review.time), title: 'Weekly review', body: 'Your week is in. See what the data says.', channel: 'checkins', url: '/me?tab=coach' });
     if (r.prep_fri.enabled && dow === 5) out.push({ at: at(date, r.prep_fri.time), title: 'Meal prep', body: 'Friday prep covers Fri-Mon: chicken, rice, eggs, soup.', channel: 'meals', url: '/prep' });
     if (r.prep_tue.enabled && dow === 2) out.push({ at: at(date, r.prep_tue.time), title: 'Meal prep', body: 'Tuesday prep covers Tue-Thu and Saturday.', channel: 'meals', url: '/prep' });
     if (r.water.enabled) {

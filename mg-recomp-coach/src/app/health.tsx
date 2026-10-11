@@ -34,7 +34,7 @@ export default function Health() {
           })}
         </Card>
       ))}
-      <T v="caption" muted>“Kidney labs done and normal” unlocks the creatine card. “Doctor reviewed my labs and BP” lets you confirm clearance in Settings.</T>
+      <T v="caption" muted>“Kidney labs done and normal” unlocks the creatine card. “Doctor reviewed my labs and BP” lets you confirm clearance in Me &gt; Plan &gt; Settings.</T>
 
       <SectionTitle right={<Button label="Add reading" small icon="plus" onPress={() => setBp(true)} />}>Blood pressure</SectionTitle>
       <Banner tone={status.level === 'urgent' ? 'danger' : status.level === 'doctorSoon' || status.level === 'elevated' ? 'warning' : 'info'} text={status.message} />

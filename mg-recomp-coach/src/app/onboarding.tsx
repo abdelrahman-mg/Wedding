@@ -120,7 +120,7 @@ export default function Onboarding() {
       {step === 3 && (
         <>
           <T v="title">Reminders</T>
-          <T muted>Short nudges at the right time. Toggle any of them now or later in Plan &gt; Reminders.</T>
+          <T muted>Short nudges at the right time. Toggle any of them now or later in Me &gt; Plan &gt; Reminders.</T>
           {(Object.keys(REMINDER_LABELS) as ReminderId[]).map((id) => (
             <ToggleRow
               key={id}

@@ -75,7 +75,7 @@ const KNEE_RULES: { re: RegExp; why: string }[] = [
   { re: /jump|plyo|box\s*jump|burpee|\bskip(ping)?\b|\bhops?\b/i, why: 'No jumping: protect the repaired knee.' },
   { re: /\brun(ning)?\b|sprint|jog/i, why: 'No running in this plan. Use incline walking, bike or elliptical.' },
   { re: /lunge|split\s*squat|pistol/i, why: 'Lunges and split squats load the knee with pivoting. Use the leg press or box squat.' },
-  { re: /leg\s*extension/i, why: 'Leg extensions are excluded (end-range knee stress). The light 90-45 degree version can be unlocked after week 6 in Plan settings.' },
+  { re: /leg\s*extension/i, why: 'Leg extensions are excluded (end-range knee stress). The light 90-45 degree version can be unlocked after week 6 in Me > Plan > Workouts.' },
   { re: /\bHIIT\b|tabata/i, why: 'No HIIT in this plan. Keep cardio easy and steady.' },
 ];
 

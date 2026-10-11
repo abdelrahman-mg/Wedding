@@ -485,7 +485,7 @@ export const num = (s: string): number | null => {
 };
 
 // Screen header: big title, optional subtitle, actions on the right (Plan shortcut by default).
-export function ScreenHeader({ title, subtitle, right, planLink = true }: { title: string; subtitle?: string; right?: ReactNode; planLink?: boolean }) {
+export function ScreenHeader({ title, subtitle, right, planLink = false }: { title: string; subtitle?: string; right?: ReactNode; planLink?: boolean }) {
   const { c } = useTheme();
   return (
     <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginTop: space.xs }}>

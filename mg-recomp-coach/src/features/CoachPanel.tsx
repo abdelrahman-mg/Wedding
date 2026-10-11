@@ -92,7 +92,7 @@ export function CoachPanel({ tab }: { tab: 'review' | 'ask' }) {
         router.push('/gym');
         break;
       case 'band':
-        router.push({ pathname: '/progress', params: { tab: 'stats' } });
+        router.push({ pathname: '/me', params: { tab: 'progress' } });
         break;
       case 'pain':
         setPain(true);

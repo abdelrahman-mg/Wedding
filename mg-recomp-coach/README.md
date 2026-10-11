@@ -10,7 +10,7 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
-**Ready-made APK:** download [`release/MG-Recomp-Coach-1.2.0.apk`](release/MG-Recomp-Coach-1.2.0.apk) on your phone and install it. It installs over 1.0.0 and 1.1.0 and keeps your data. To build your own instead, use one of the options below.
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.3.0.apk`](release/MG-Recomp-Coach-1.3.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
 
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 
@@ -83,13 +83,20 @@ Useful scripts:
 
 ## 3. What is in the app
 
-Bottom tabs: **Home, Food, Gym, Log, Progress**. **Plan & settings** opens from the Plan button at the top right of every tab.
+Three tabs: **Today, Gym, Me**.
 
-- **Home.** A dashboard: score and targets, water, the next meal (Ate it / Plan B), today's workout, the coach's headline and pending changes, the weekly rings, and Log / Check-in buttons.
-- **Food.** Today's meals (tap the circle when eaten; tap a row for Plan B or Skip), extra food eaten outside the plan, the weekly meal plan by day, the full meal library (including the B5 Granola bowl and the no-cooking meals), and links to shopping, meal prep, swaps and the plan editor.
-- **Gym.** Today's session (start, minimum version, walk fallback), then **All workouts**: every session with every exercise, this week's sets × reps, rest, RIR, cue, alternatives, your last numbers and the next progression step, and a "Start now" button. Also cardio, warm-up, mobility, history and the strength tests.
-- **Log.** Submit anything, anytime: each input (weight, steps, water, cardio, sleep, energy and hunger, waist, blood pressure, note, food) has its own Submit. A timeline lists everything submitted that day with an undo button.
-- **Progress.** Stats and charts, plus **Coach review** (the weekly rules engine and its Apply / Not now cards) and **Ask coach** (offline topics, the optional AI coach and the API key setup).
+- **Today.** The whole day in one scroll, top to bottom:
+  - Your score and targets, and water (+/−).
+  - Meals: tap the circle when eaten; tap a meal for Plan B or Skip; "Add food you ate" for anything extra. The next meal opens by itself.
+  - The workout card, which opens the Gym tab.
+  - Your numbers, each with its own Submit: weight, steps, sleep, energy and hunger. "More" adds cardio, waist, blood pressure and a note.
+  - The craving, "something hurt" and "feel unwell" buttons, and the list of what you submitted today (with undo).
+  - The coach's headline, the weekly rings and the end-of-day check-in.
+- **Gym.** Today's session (start, 30-minute minimum version, walk fallback), then every workout and exercise with this week's sets, reps, rest, cues, alternatives, your last numbers and the next step. Also cardio, warm-up, mobility, history and the strength tests.
+- **Me.**
+  - **Progress:** stats and charts.
+  - **Coach:** the weekly review with Apply / Not now, and "Ask a question", which also holds the AI key setup.
+  - **Plan:** edit meals and workouts, targets, shopping, meal prep, guides, health checks, reminders, settings, then the 12-week roadmap, this week's meals and the meal library.
 
 The sections below describe each feature in detail.
 

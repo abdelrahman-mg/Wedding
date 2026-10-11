@@ -25,5 +25,5 @@ test('after onboarding the tabs render', async () => {
   useApp.setState({ data: d, hydrated: true, active: null });
   await renderRouter(APP, { initialUrl: '/' });
   expect(await screen.findByText(/Hi, MG/)).toBeTruthy();
-  for (const tab of ['Home', 'Food', 'Gym', 'Log', 'Progress']) expect(screen.getAllByText(tab).length).toBeGreaterThan(0);
+  for (const tab of ['Today', 'Gym', 'Me']) expect(screen.getAllByText(tab).length).toBeGreaterThan(0);
 });

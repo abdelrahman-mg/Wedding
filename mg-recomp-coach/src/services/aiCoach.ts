@@ -140,7 +140,7 @@ export async function testApiKey(key: string): Promise<{ ok: true } | { ok: fals
 
 export async function askCoach(data: AppData, today: ISODate, question: string): Promise<string> {
   const key = await getApiKey();
-  if (!key) throw new Error('No API key saved yet. Add yours in Progress > Ask coach.');
+  if (!key) throw new Error('No API key saved yet. Add yours in Me > Coach > Ask a question.');
   let response;
   try {
     response = await client(key).beta.messages.create({

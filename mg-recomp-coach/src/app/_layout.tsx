@@ -70,7 +70,6 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="plan" options={{ title: 'Plan & settings' }} />
           <Stack.Screen name="checkin" options={{ title: 'Check-in', presentation: 'modal' }} />
           <Stack.Screen name="edit-meals" options={{ title: 'Weekly meal plan' }} />
           <Stack.Screen name="edit-workouts" options={{ title: 'Workouts' }} />

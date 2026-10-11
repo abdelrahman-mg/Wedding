@@ -2,10 +2,7 @@
 import { fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import Today from '../src/app/(tabs)/index';
 import Gym from '../src/app/(tabs)/gym';
-import Food from '../src/app/(tabs)/food';
-import Progress from '../src/app/(tabs)/progress';
-import Plan from '../src/app/plan';
-import Log from '../src/app/(tabs)/log';
+import Me from '../src/app/(tabs)/me';
 import Onboarding from '../src/app/onboarding';
 import Checkin from '../src/app/checkin';
 import EditMeals from '../src/app/edit-meals';
@@ -35,10 +32,7 @@ beforeAll(async () => {
 const routes: Record<string, React.ComponentType<any>> = {
   index: Today,
   gym: Gym,
-  food: Food,
-  progress: Progress,
-  plan: Plan,
-  log: Log,
+  me: Me,
   onboarding: Onboarding,
   checkin: Checkin,
   'edit-meals': EditMeals,
@@ -58,12 +52,9 @@ const routes: Record<string, React.ComponentType<any>> = {
 };
 
 const expectations: Record<string, RegExp> = {
-  '/': /UP NEXT|All meals logged/,
+  '/': /Your numbers/,
   '/gym': /All workouts/,
-  '/food': /Meal library/,
-  '/progress': /Progress/,
-  '/plan': /12-week roadmap/,
-  '/log': /Submit anything, anytime/,
+  '/me': /Total lost/,
   '/onboarding': /Hey MG/,
   '/checkin': /Quick questions/,
   '/edit-meals': /Treat lunch day/,
@@ -161,16 +152,16 @@ describe('interactions', () => {
 describe('log tab and AI setup', () => {
   const fresh = () => ({ ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } });
 
-  test('the Log tab submits each input on its own and can undo it', async () => {
+  test('Today submits each input on its own and can undo it', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
-    await renderRouter(routes, { initialUrl: '/log' });
+    await renderRouter(routes, { initialUrl: '/' });
     await fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '108.4');
     await fireEvent.press(screen.getAllByText('Submit')[0]);
     expect(useApp.getState().data.body[todayISO()]?.weight).toBe(108.4);
     await fireEvent.changeText(screen.getByLabelText('Total from your phone’s step counter'), '7200');
     await fireEvent.press(screen.getAllByText('Submit')[1]);
     expect(useApp.getState().data.dayLogs[todayISO()]?.steps).toBe(7200);
-    await fireEvent.press(screen.getByText('+1 glass (250 ml)'));
+    await fireEvent.press(screen.getByLabelText('Add a glass of water (250 ml)'));
     expect(useApp.getState().data.dayLogs[todayISO()]?.water).toBe(1);
     expect(screen.getByText('Weight 108.4 kg')).toBeTruthy();
     expect(useApp.getState().data.entries).toHaveLength(3);
@@ -179,9 +170,9 @@ describe('log tab and AI setup', () => {
     expect(useApp.getState().data.entries).toHaveLength(2);
   });
 
-  test('extra food counts toward the day and shows on the Food tab', async () => {
+  test('extra food counts toward the day on Today', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
-    await renderRouter(routes, { initialUrl: '/food' });
+    await renderRouter(routes, { initialUrl: '/' });
     await fireEvent.press(screen.getByText('Add food you ate'));
     await fireEvent.press(await screen.findByText('Banana · 105'));
     const log = useApp.getState().data.dayLogs[todayISO()];
@@ -197,14 +188,27 @@ describe('log tab and AI setup', () => {
     expect(screen.getByText('Start Lower B now')).toBeTruthy();
   });
 
-  test('Coach shows the AI key setup under Ask the coach', async () => {
+  test('Me > Coach shows the AI key setup under Ask a question', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
-    await renderRouter(routes, { initialUrl: '/progress' });
-    await fireEvent.press(screen.getByLabelText('Ask coach'));
+    await renderRouter(routes, { initialUrl: '/me' });
+    await fireEvent.press(screen.getByLabelText('Coach'));
+    await fireEvent.press(screen.getByLabelText('Ask a question'));
     expect(await screen.findByText(/Connect the AI coach/)).toBeTruthy();
     expect(screen.getByText('Open Anthropic Console')).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText('API key'), 'not-a-real-key-123456789');
     await fireEvent.press(screen.getByText('Save and test'));
     expect(screen.getByText(/Keys start with sk-ant-/)).toBeTruthy();
+  });
+});
+
+describe('Me tab', () => {
+  test('Plan shows the roadmap, settings links and the meal plan', async () => {
+    useApp.setState({ data: { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } }, hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/me' });
+    await fireEvent.press(screen.getByLabelText('Plan'));
+    expect(screen.getByText('12-week roadmap')).toBeTruthy();
+    expect(screen.getByText('Settings')).toBeTruthy();
+    expect(screen.getByText('This week’s meals')).toBeTruthy();
+    expect(screen.getByText('Meal library')).toBeTruthy();
   });
 });

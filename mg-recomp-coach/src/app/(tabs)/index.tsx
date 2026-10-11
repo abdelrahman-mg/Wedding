@@ -2,16 +2,17 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { getMeal, SLOT_INFO, type Slot } from '../../data/meals';
+import { getMeal } from '../../data/meals';
 import { ARABIC_PHRASES, DAILY_MESSAGES } from '../../data/messages';
-import { addDays, formatLong, formatShort, programWeek, todayISO, weekDates, weekStart } from '../../engine/dates';
+import { addDays, formatLong, formatShort, programWeek, todayISO, weekStart } from '../../engine/dates';
 import { kcalRemovalSuggestions, plannedTotals } from '../../engine/nutrition';
 import { daySummary, pickMessageIndex, streaksAndXp, weekStats } from '../../engine/selectors';
 import { useCoachProposals } from '../../features/CoachPanel';
-import { PlanBSheet } from '../../features/PlanBSheet';
+import { Inputs, MomentButtons, Timeline } from '../../features/LogInputs';
+import { MealsCard } from '../../features/Meals';
 import { useApp } from '../../store/useApp';
 import { Icon } from '../../ui/Icon';
-import { AlertStack, Button, Card, IconButton, ProgressBar, Ring, Row, Screen, ScreenHeader, SectionTitle, T, type AlertItem } from '../../ui/kit';
+import { AlertStack, Banner, Button, Card, IconButton, ProgressBar, Ring, Row, Screen, ScreenHeader, SectionTitle, T, type AlertItem } from '../../ui/kit';
 import { radius, space, useTheme } from '../../ui/theme';
 
 function greeting(): string {
@@ -25,7 +26,7 @@ export default function Today() {
   const st = useApp.getState();
   const today = todayISO();
   const [date, setDate] = useState(today);
-  const [planB, setPlanB] = useState<{ slot: Slot; mealId: string } | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const coach = useCoachProposals();
 
   const start = data.profile.startDate ?? today;
@@ -44,20 +45,6 @@ export default function Today() {
     if (data.messageHistory[today] == null) st.setMessageIndex(today, msgIdx);
   }, [today, msgIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const treatsThisWeek = useMemo(() => {
-    let n = 0;
-    for (const d of weekDates(weekStart(date))) {
-      const l = data.dayLogs[d];
-      if (!l) continue;
-      for (const m of Object.values(l.meals)) {
-        if (!m) continue;
-        if ((m.status === 'eaten' || m.status === 'planB') && m.mealId === 'T') n++;
-        if (m.status === 'custom' && m.custom?.treat) n++;
-      }
-    }
-    return n;
-  }, [data.dayLogs, date]);
-
   const yesterday = addDays(today, -1);
   const showMorning = isToday && new Date().getHours() < 11 && !log?.morningSeen && yesterday >= start;
   const ySum = useMemo(() => (yesterday >= start ? daySummary(data, yesterday) : null), [data, yesterday, start]);
@@ -68,20 +55,10 @@ export default function Today() {
   const alerts: AlertItem[] = [];
   if (data.settings.demoMode) alerts.push({ key: 'demo', tone: 'accent', icon: 'star', text: 'Demo mode: this is fake data. Turn it off in Settings.', onPress: () => router.push('/settings') });
   if (!data.checklist.doctor_bp?.done) alerts.push({ key: 'bp', tone: 'warning', text: 'BP not yet checked by a doctor: keep workouts moderate, no heavy straining or breath-holding.', onPress: () => router.push('/health') });
-  if (week > 12) alerts.push({ key: 'block', tone: 'info', icon: 'trophy', text: 'Block complete: run the 12-week review and start Block 2 with your updated numbers.', onPress: () => router.push({ pathname: '/progress', params: { tab: 'review' } }) });
+  if (week > 12) alerts.push({ key: 'block', tone: 'info', icon: 'trophy', text: 'Block complete: run the 12-week review and start Block 2 with your updated numbers.', onPress: () => router.push({ pathname: '/me', params: { tab: 'coach' } }) });
   if (ctx.holiday) alerts.push({ key: 'holiday', tone: 'info', icon: 'star', text: 'Holiday week: maintenance calories (+300). Restart with the next planned meal.' });
   if (ctx.deload) alerts.push({ key: 'deload', tone: 'info', icon: 'moon', text: 'Deload week: lighter on purpose.' });
   if (missedYesterday && !showMorning) alerts.push({ key: 'newday', tone: 'success', icon: 'bolt', text: `New day, same plan.${nextMeal ? ` Next up: ${nextMeal.name}.` : ''}` });
-
-  const eat = (slot: Slot, mealId: string) => {
-    const cur = log?.meals[slot];
-    if (cur && cur.status !== 'skipped') {
-      st.setMeal(date, slot, null);
-      return;
-    }
-    st.setMeal(date, slot, { status: 'eaten', mealId });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  };
 
   const dayLabel = isToday ? `Today, ${formatShort(date)}` : formatLong(date);
 
@@ -90,6 +67,7 @@ export default function Today() {
       <ScreenHeader
         title={`Hi, ${data.profile.name}`}
         subtitle={`${greeting()} · ${week > 12 ? 'Block complete' : `Week ${Math.max(1, week)}, ${ctx.phaseName}`} · ${ctx.dayTypeLabel}`}
+        planLink={false}
         right={
           <Pressable onPress={() => router.push('/badges')} accessibilityRole="button" accessibilityLabel={`Streak ${streak.current} days. Open badges.`}>
             <Row gap={4} style={{ backgroundColor: c.accentSoft, borderRadius: radius.pill, paddingHorizontal: space.md, minHeight: 48 }}>
@@ -124,10 +102,10 @@ export default function Today() {
           </T>
           <T muted>
             Today: {ctx.kcalTarget.toLocaleString('en-US')} kcal, {ctx.proteinTarget} g protein, {ctx.stepTarget.toLocaleString('en-US')} steps.
+            {data.body[today]?.weight ? '' : ' Weigh in below under “Your numbers”.'}
           </T>
           <Row>
-            <Button label={data.body[today]?.weight ? 'Weighed in ✓' : 'Log weight'} icon="scale" small onPress={() => router.push('/log')} flex />
-            <Button label="Got it" small variant="ghost" onPress={() => st.updateDay(today, { morningSeen: true })} flex />
+            <Button label="Got it" small variant="secondary" onPress={() => st.updateDay(today, { morningSeen: true })} flex />
           </Row>
         </Card>
       ) : null}
@@ -150,12 +128,12 @@ export default function Today() {
             <Icon name="drop" color={c.primary} />
             <T v="bodyStrong">Water {log?.water ?? 0}/10</T>
           </Row>
-          <IconButton name="minus" label="Remove a glass of water" onPress={() => st.addWater(date, -1)} color={c.primary} />
+          <IconButton name="minus" label="Remove a glass of water" onPress={() => (log?.water ?? 0) > 0 && st.submit(date, 'water', -1)} color={c.primary} />
           <IconButton
             name="plus"
             label="Add a glass of water (250 ml)"
             onPress={() => {
-              st.addWater(date, 1);
+              st.submit(date, 'water', 1);
               Haptics.selectionAsync().catch(() => {});
             }}
             color={c.primary}
@@ -169,36 +147,13 @@ export default function Today() {
         ) : null}
       </Card>
 
-      {/* Up next */}
-      <SectionTitle right={<Button label="All meals" small variant="ghost" onPress={() => router.push('/food')} />}>Food</SectionTitle>
-      <Card>
-        {nextSlot && nextMeal ? (
-          <>
-            <T v="caption" muted>
-              UP NEXT · {SLOT_INFO[nextSlot.slot].time} {SLOT_INFO[nextSlot.slot].label}
-            </T>
-            <T v="heading">{nextMeal.name}</T>
-            <T muted>{nextMeal.desc}</T>
-            <T v="label">
-              {nextMeal.kcal} kcal · {nextMeal.protein} g protein
-            </T>
-            <Row>
-              <Button label="Ate it" icon="check" small onPress={() => eat(nextSlot.slot, nextSlot.mealId)} flex />
-              <Button label="Plan B" icon="swap" small variant="secondary" onPress={() => setPlanB({ slot: nextSlot.slot, mealId: nextSlot.mealId })} flex />
-            </Row>
-          </>
-        ) : (
-          <T v="bodyStrong">All meals logged for this day. Nice.</T>
-        )}
-        <T v="caption" muted>
-          {ctx.slots.filter((s) => log?.meals[s.slot] && log.meals[s.slot]?.status !== 'skipped').length}/{ctx.slots.length} meals done
-          {(log?.extras?.length ?? 0) ? ` · ${log?.extras?.length} extra` : ''}
-        </T>
-      </Card>
+      {/* 1. Meals */}
+      <SectionTitle>Meals</SectionTitle>
+      <MealsCard key={`meals-${date}`} date={date} isToday={isToday} />
 
-      {/* Training */}
-      <SectionTitle>Gym</SectionTitle>
-      <Card onPress={() => router.push('/gym')} accessibilityLabel="Open gym">
+      {/* 2. Workout */}
+      <SectionTitle>Workout</SectionTitle>
+      <Card onPress={() => router.push('/gym')} accessibilityLabel="Open the Gym tab">
         <Row>
           <Icon name={ctx.isGym ? 'train' : 'walk'} color={c.primary} />
           <View style={{ flex: 1 }}>
@@ -207,22 +162,31 @@ export default function Today() {
               {sum.workout
                 ? `Done: ${sum.workout === 'full' ? 'full workout' : sum.workout === 'minimum' ? 'minimum version' : 'walk'}`
                 : ctx.isGym
-                  ? 'Tired after work? The 30-minute minimum version still counts.'
-                  : `Easy cardio ${log?.cardioMinutes ?? 0}/${ctx.cardioTarget} min. Talk test: full sentences.`}
+                  ? 'Tap to start. Tired? The 30-minute minimum version still counts.'
+                  : `Easy cardio ${log?.cardioMinutes ?? 0}/${ctx.cardioTarget} min. Tap for the timer.`}
             </T>
           </View>
           <Icon name={sum.workout ? 'check' : 'right'} color={sum.workout ? c.success : c.textMuted} />
         </Row>
       </Card>
 
+      {/* 3. Your numbers */}
+      <SectionTitle>Your numbers</SectionTitle>
+      <T v="caption" muted>Submit any of these whenever you like. Each one saves on its own.</T>
+      {saved ? <Banner tone="success" icon="check" text={saved} onPress={() => setSaved(null)} /> : null}
+      <Inputs key={`inputs-${date}`} date={date} onDone={setSaved} />
+      <MomentButtons date={date} />
+      <SectionTitle>Submitted {isToday ? 'today' : formatShort(date)}</SectionTitle>
+      <Timeline date={date} />
+
       {/* Coach */}
       <SectionTitle>Coach</SectionTitle>
-      <Card onPress={() => router.push({ pathname: '/progress', params: { tab: 'review' } })} accessibilityLabel="Open coach review">
+      <Card onPress={() => router.push({ pathname: '/me', params: { tab: 'coach' } })} accessibilityLabel="Open the coach">
         <Row>
           <Icon name="coach" color={c.primary} />
           <View style={{ flex: 1 }}>
             <T v="bodyStrong">{coach.review.headline}</T>
-            <T v="caption" muted>{coach.pending.length ? `${coach.pending.length} suggested change${coach.pending.length > 1 ? 's' : ''} waiting for you` : 'No changes needed right now. Tap to ask the coach.'}</T>
+            <T v="caption" muted>{coach.pending.length ? `${coach.pending.length} suggested change${coach.pending.length > 1 ? 's' : ''} waiting for you` : 'No changes needed. Tap to ask the coach a question.'}</T>
           </View>
           <Icon name="right" color={c.textMuted} />
         </Row>
@@ -251,23 +215,7 @@ export default function Today() {
         </Row>
       </Card>
 
-      <Row>
-        <Button label="Log numbers" icon="plus" variant="secondary" onPress={() => router.push('/log')} flex />
-        <Button label="Check-in" icon="check" variant="accent" onPress={() => router.push({ pathname: '/checkin', params: { date } })} flex />
-      </Row>
-
-      {planB ? (
-        <PlanBSheet
-          visible
-          onClose={() => setPlanB(null)}
-          date={date}
-          slot={planB.slot}
-          plannedId={planB.mealId}
-          dayPlannedKcal={plannedKcal}
-          dayTarget={ctx.kcalTarget}
-          treatsThisWeek={treatsThisWeek}
-        />
-      ) : null}
+      <Button label="End-of-day check-in" icon="check" variant="accent" onPress={() => router.push({ pathname: '/checkin', params: { date } })} />
     </Screen>
   );
 }
