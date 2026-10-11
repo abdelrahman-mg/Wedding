@@ -38,6 +38,8 @@ export interface ReminderSetting {
 
 export interface Settings {
   theme: 'system' | 'light' | 'dark';
+  /** Color scheme id (see THEMES in ui/theme). */
+  palette: string;
   arabic: boolean;
   units: 'metric' | 'imperial';
   reminders: Record<ReminderId, ReminderSetting>;

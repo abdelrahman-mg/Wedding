@@ -34,6 +34,7 @@ export function defaultPlan(): PlanState {
 export function defaultSettings(): Settings {
   return {
     theme: 'system',
+    palette: 'nile',
     arabic: false,
     units: 'metric',
     reminders: JSON.parse(JSON.stringify(DEFAULT_REMINDERS)),

@@ -10,7 +10,7 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
-**Ready-made APK:** download [`release/MG-Recomp-Coach-1.3.0.apk`](release/MG-Recomp-Coach-1.3.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.4.0.apk`](release/MG-Recomp-Coach-1.4.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
 
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 
@@ -133,7 +133,7 @@ The sections below describe each feature in detail.
   - Editors for meals (including moving the treat day) and workouts (session days, permanent swaps, the leg-extension opt-in after week 6), and the Targets screen (all edits validated against the hard limits).
   - Shopping list, meal prep, guides (ingredient Plan B, eating out, supplements with creatine locked until kidney labs are normal), health checks and the BP log, reminders, settings, and safety.
 
-Design: Nile-teal and emerald primary colors with an amber accent for streaks and achievements. The background is off-white in light mode and teal-black in dark mode. Space Grotesk is used for headings and Inter for body text. The app follows the system theme, with a manual override, and there is a "reduce motion" switch that also follows the system setting. Tap targets are at least 48 dp, and status is never shown by color alone.
+Design: six color schemes (Nile teal, Ocean blue, Graphite, Sunset, Plum, Forest), each with a light and a dark version. Pick one in Me > Plan > Colors and theme; it applies instantly. The default is Nile teal and emerald with an amber accent for streaks and achievements. The colors of "done", warnings and dangers stay the same in every scheme. The background is off-white in light mode and teal-black in dark mode. Space Grotesk is used for headings and Inter for body text. The app follows the system theme, with a manual override, and there is a "reduce motion" switch that also follows the system setting. Tap targets are at least 48 dp, and status is never shown by color alone.
 
 ---
 

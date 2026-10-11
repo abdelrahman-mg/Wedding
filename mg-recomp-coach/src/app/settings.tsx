@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import { DISCLAIMER } from '../data/guides';
 import { todayISO } from '../engine/dates';
 import { AiKeyCard } from '../features/AiKeyCard';
+import { ThemePicker } from '../features/ThemePicker';
 import { buildDemoData } from '../services/demo';
 import { exportBackup, pickBackup } from '../services/files';
 import { disableDemo, enableDemo, REAL_BACKUP_KEY, STORAGE_KEY, useApp } from '../store/useApp';
@@ -58,7 +59,7 @@ export default function Settings() {
 
       <SectionTitle>Look and feel</SectionTitle>
       <Card>
-        <Segmented label="Theme" value={s.theme} onChange={(v) => st.setSettings({ theme: v })} options={[{ label: 'System', value: 'system' }, { label: 'Light', value: 'light' }, { label: 'Dark', value: 'dark' }]} />
+        <ThemePicker />
         <Segmented label="Body units" value={s.units} onChange={(v) => st.setSettings({ units: v })} options={[{ label: 'kg / cm', value: 'metric' }, { label: 'lb / in', value: 'imperial' }]} />
         <T v="caption" muted>Gym loads always stay in kg.</T>
         <ToggleRow label="Arabic encouragement" sub="Occasional Franco-Arabic phrases on Today" value={s.arabic} onChange={(v) => st.setSettings({ arabic: v })} />

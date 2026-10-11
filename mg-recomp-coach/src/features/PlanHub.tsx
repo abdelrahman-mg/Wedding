@@ -64,6 +64,7 @@ export function PlanHub() {
       <SectionTitle>You</SectionTitle>
       <LinkRow icon="heart" title="Health checks" sub="Doctor, labs, blood pressure log" href="/health" />
       <LinkRow icon="moon" title="Reminders" sub="Times, toggles, snooze" href="/reminders" />
+      <LinkRow icon="star" title="Colors and theme" sub="Pick a color scheme, light or dark" href="/settings" />
       <LinkRow icon="gear" title="Settings" sub="Theme, units, backup, demo mode, AI coach, about" href="/settings" />
       <LinkRow icon="alert" title="Safety and disclaimers" href="/safety" />
       <SectionTitle>12-week roadmap</SectionTitle>
