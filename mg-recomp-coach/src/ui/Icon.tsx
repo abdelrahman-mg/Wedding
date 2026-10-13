@@ -31,6 +31,7 @@ export type IconName =
   | 'cart'
   | 'down'
   | 'up'
+  | 'play'
   | 'food';
 
 export function Icon({ name, size = 22, color, strokeWidth = 2 }: { name: IconName; size?: number; color: string; strokeWidth?: number }) {
@@ -44,6 +45,8 @@ export function Icon({ name, size = 22, color, strokeWidth = 2 }: { name: IconNa
             <Path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" {...p} />
           </>
         );
+      case 'play':
+        return <Path d="M8 5.5v13l11-6.5z" {...p} />;
       case 'train':
         return <Path d="M6 7v10M18 7v10M3 9.5v5M21 9.5v5M6 12h12" {...p} />;
       case 'progress':

@@ -3,13 +3,13 @@ import { HARD_LIMITS } from '../data/phases';
 import { addDays, diffDays } from './dates';
 import { checkKcalAdjust } from './limits';
 import { droppedVsPrevious, type ExerciseSession } from './progression';
-import { expectedWeight, stepTarget, weekTarget } from './targets';
+import { LOSS_MAX, LOSS_MIN, weekTarget, weightBand } from './targets';
 import type { BpEntry, ChangeType, ISODate, PainFlag } from './types';
 
 export interface WeekStats {
   weekStart: ISODate;
   week: number; // program week of this Sunday-Saturday week
-  avgWeight: number | null; // null when fewer than 3 weigh-ins
+  avgWeight: number | null; // null when fewer than 2 weigh-ins
   weighIns: number;
   waist: number | null;
   daysOnPlan: number;
@@ -46,16 +46,18 @@ export type ReviewStatus =
   | 'learning'
   | 'holiday'
   | 'onTrack'
-  | 'aboveOneWeek'
-  | 'above'
-  | 'aboveMidAdherence'
-  | 'aboveLowAdherence'
-  | 'limitsReached'
-  | 'below'
-  | 'fastLoss';
+  | 'fastLoss'
+  | 'slow'
+  | 'stalled'
+  | 'stalledLowAdherence'
+  | 'limitsReached';
 
 export interface ReviewMetrics {
   latestAvg: number | null;
+  /** Average of the week before the latest one (or the start weight for the first week). */
+  prevAvg: number | null;
+  /** Latest average minus the previous one. Negative = lost weight. */
+  changeVsPrev: number | null;
   expected: number | null;
   bandLow: number | null;
   bandHigh: number | null;
@@ -75,35 +77,41 @@ export interface ReviewResult {
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const BAND = 1.5;
+/** A week with less loss than this counts as a stall (flat or gaining). */
+const STALL_LOSS = 0.1;
+const KCAL_UP = 100;
+const KCAL_DOWN = 100;
 
 function computeMetrics(weeks: WeekStats[], w0: number): ReviewMetrics {
   const withAvg = weeks.filter((w) => w.avgWeight != null && w.week >= 1);
-  const empty: ReviewMetrics = { latestAvg: null, expected: null, bandLow: null, bandHigh: null, ratePerWeek: null, distanceFromBand: null, projectedWeek12: null };
+  const empty: ReviewMetrics = { latestAvg: null, prevAvg: null, changeVsPrev: null, expected: null, bandLow: null, bandHigh: null, ratePerWeek: null, distanceFromBand: null, projectedWeek12: null };
   if (!withAvg.length) return empty;
   const latest = withAvg[withAvg.length - 1];
   const t = Math.min(12, latest.week);
-  const e = expectedWeight(t, w0);
-  // Rate over the last two weeks (baseline W0 counts as week 0).
+  const b = weightBand(t, w0);
+  // Compare with the nearest earlier week that has an average (the start weight counts as week 0).
   const series = [{ week: 0, avg: w0 }, ...withAvg.map((w) => ({ week: w.week, avg: w.avgWeight as number }))];
   const last = series[series.length - 1];
-  const ref = series.filter((p) => p.week >= last.week - 2 && p.week < last.week)[0];
-  const rate = ref ? (ref.avg - last.avg) / (last.week - ref.week) : null;
+  const ref = series[series.length - 2];
+  const rate = ref ? (ref.avg - last.avg) / Math.max(1, last.week - ref.week) : null;
   const projected = rate != null ? last.avg - rate * Math.max(0, 12 - last.week) : null;
   return {
     latestAvg: r1(last.avg),
-    expected: r1(e),
-    bandLow: r1(e - BAND),
-    bandHigh: r1(e + BAND),
+    prevAvg: ref ? r1(ref.avg) : null,
+    changeVsPrev: ref ? Math.round((last.avg - ref.avg) * 100) / 100 : null,
+    expected: r1(b.expected),
+    bandLow: r1(b.low),
+    bandHigh: r1(b.high),
     ratePerWeek: rate != null ? Math.round(rate * 100) / 100 : null,
-    distanceFromBand: r1(last.avg - e),
+    distanceFromBand: r1(last.avg - b.expected),
     projectedWeek12: projected != null ? r1(projected) : null,
   };
 }
 
 /**
- * Weekly review over completed Sunday-Saturday weeks (chronological).
- * Uses only weekly averages, never a single weigh-in.
+ * Weekly check-in over completed Sunday-Saturday weeks (chronological).
+ * Compares each weekly average with the week before. Target loss is 0.3-0.7 kg a week:
+ * faster than that suggests a little more food, a 2-week stall suggests a little less.
  */
 export function weeklyReview(weeks: WeekStats[], ctx: ReviewCtx): ReviewResult {
   const done = weeks.filter((w) => w.week >= 1);
@@ -112,122 +120,88 @@ export function weeklyReview(weeks: WeekStats[], ctx: ReviewCtx): ReviewResult {
   const proposals: Proposal[] = [];
 
   if (!done.length) {
-    return { status: 'noWeeks', headline: 'First review after your first full week.', messages: ['Weigh in every morning. The coach needs at least 3 weigh-ins per week.'], proposals, metrics };
+    return { status: 'noWeeks', headline: 'First check-in after your first full week.', messages: ['Weigh in on the smart scale every morning, or at least 3 times a week. The weekly average is what counts.'], proposals, metrics };
   }
 
   const latest = done[done.length - 1];
   const prev = done.length >= 2 ? done[done.length - 2] : null;
-  const prev2 = done.length >= 3 ? done[done.length - 3] : null;
   const t = Math.min(12, latest.week);
 
   if (latest.avgWeight == null) {
-    return { status: 'needData', headline: 'Log more weigh-ins', messages: [`Only ${latest.weighIns} weigh-in${latest.weighIns === 1 ? '' : 's'} last week. The coach needs at least 3 to judge the trend.`], proposals, metrics };
+    return { status: 'needData', headline: 'Log more weigh-ins', messages: [`Only ${latest.weighIns} weigh-in${latest.weighIns === 1 ? '' : 's'} last week. Two or more are needed for a weekly average.`], proposals, metrics };
   }
 
+  const rate = metrics.ratePerWeek as number;
+  const rateText = `${rate >= 0 ? 'Down' : 'Up'} ${Math.abs(rate).toFixed(2)} kg vs the week before. Target: ${LOSS_MIN}-${LOSS_MAX} kg a week.`;
+
   if (t <= 2) {
-    const e = expectedWeight(t, ctx.w0);
-    const inside = Math.abs(latest.avgWeight - e) <= BAND;
-    messages.push('Learning phase: weight changes now are mostly water and food volume. Keep logging.');
-    messages.push(inside ? 'Your average is inside the expected band.' : `Your average is ${r1(latest.avgWeight - e)} kg from the expected value. No changes in weeks 1-2.`);
+    messages.push('Learning phase: weight changes now are mostly water and food volume. Keep logging.', rateText);
     return { status: 'learning', headline: 'Learning phase (weeks 1-2)', messages, proposals, metrics };
   }
 
   if (latest.holiday) {
-    return { status: 'holiday', headline: 'Holiday week: band check paused', messages: ['Maintenance week. Restart the plan with your next meal.'], proposals, metrics };
+    return { status: 'holiday', headline: 'Holiday week: check paused', messages: ['Maintenance week. Restart the plan with your next meal.'], proposals, metrics };
   }
 
-  const E = (w: WeekStats) => expectedWeight(Math.min(12, w.week), ctx.w0);
-  const above = (w: WeekStats | null) => !!w && w.avgWeight != null && !w.holiday && w.avgWeight - E(w) > BAND;
-  const below = (w: WeekStats | null) => !!w && w.avgWeight != null && E(w) - w.avgWeight > BAND;
-  const consecutive = (a: WeekStats | null, b: WeekStats | null) => !!a && !!b && b.week - a.week === 1;
-
-  // Waist: down 1 cm+ over 2 weeks while weight flat or inside the band.
+  // Waist: down 1 cm+ over 2 weeks while weight is flat.
+  const prev2 = done.length >= 3 ? done[done.length - 3] : null;
   const waistRef = prev2?.waist ?? prev?.waist ?? null;
-  if (latest.waist != null && waistRef != null && waistRef - latest.waist >= 1) {
-    const flat = prev?.avgWeight != null && Math.abs(prev.avgWeight - latest.avgWeight) < 0.5;
-    const inside = Math.abs(latest.avgWeight - E(latest)) <= BAND;
-    if (flat || inside) messages.push(`Waist down ${r1(waistRef - latest.waist)} cm in 2 weeks: recomposition is working, keep the plan.`);
+  if (latest.waist != null && waistRef != null && waistRef - latest.waist >= 1 && rate < LOSS_MIN) {
+    messages.push(`Waist down ${r1(waistRef - latest.waist)} cm in 2 weeks while the scale is slow: recomposition is working, keep the plan.`);
   }
 
-  // Too fast: below the band, or losing > 1.3 kg/week two weeks in a row.
-  const loss = (a: WeekStats | null, b: WeekStats | null) =>
-    a && b && a.avgWeight != null && b.avgWeight != null && consecutive(a, b) ? a.avgWeight - b.avgWeight : null;
-  const l1 = loss(prev, latest);
-  const l2 = loss(prev2, prev);
-  const fast = l1 != null && l2 != null && l1 > 1.3 && l2 > 1.3;
-  if (below(latest) || fast) {
+  if (rate > LOSS_MAX) {
+    const newAdj = ctx.kcalAdjust + KCAL_UP;
     proposals.push({
-      id: `${latest.weekStart}:kcal+200`,
-      title: 'Eat a bit more',
-      reason: fast
-        ? `You lost ${r1(l2 as number)} and ${r1(l1 as number)} kg in the last two weeks. Faster than about 1.3 kg/week costs muscle and energy.`
-        : `Your average (${r1(latest.avgWeight)} kg) is more than 1.5 kg below the expected ${r1(E(latest))} kg.`,
-      change: `kcal target +200 per day (extra carbs around training: e.g. 1/2 cup more rice at lunch and dinner on gym days). New adjustment: ${ctx.kcalAdjust + 200 > 0 ? '+' : ''}${ctx.kcalAdjust + 200} kcal.`,
-      apply: [{ type: 'kcalAdjust', value: ctx.kcalAdjust + 200 }],
+      id: `${latest.weekStart}:kcal+${KCAL_UP}`,
+      title: 'Eat a little more',
+      reason: `You lost ${rate.toFixed(2)} kg this week. Faster than ${LOSS_MAX} kg a week risks muscle and gym strength.`,
+      change: `kcal target +${KCAL_UP} per day (for example 1/2 cup more rice at lunch). New adjustment: ${newAdj > 0 ? '+' : ''}${newAdj} kcal.`,
+      apply: [{ type: 'kcalAdjust', value: newAdj }],
     });
-    messages.push('Strength and energy check: are your lifts holding? Is your energy 3 or more most days? If not, the extra food will help.');
-    return { status: fast ? 'fastLoss' : 'below', headline: fast ? 'Losing faster than planned' : 'Below the expected band', messages, proposals, metrics };
+    messages.unshift(rateText, 'Strength check: are your lifts holding or going up? If not, the extra food will help.');
+    return { status: 'fastLoss', headline: 'Losing faster than planned', messages, proposals, metrics };
   }
 
-  if (Math.abs(latest.avgWeight - E(latest)) <= BAND) {
-    messages.unshift('Inside the band. On track: no changes needed.');
+  if (rate >= LOSS_MIN) {
+    messages.unshift(rateText, 'In the target range. No changes needed.');
     return { status: 'onTrack', headline: 'On track', messages, proposals, metrics };
   }
 
-  // Above band.
-  if (!(above(prev) && consecutive(prev, latest))) {
-    messages.unshift('Above the band this week. One week is noise: no change yet. Keep the plan and check again next Sunday.');
-    return { status: 'aboveOneWeek', headline: 'Above band (1 week)', messages, proposals, metrics };
+  const stallWeek = (w: WeekStats | null, before: WeekStats | null) =>
+    !!w && !!before && w.avgWeight != null && before.avgWeight != null && w.week - before.week === 1 && before.avgWeight - w.avgWeight < STALL_LOSS;
+  const stalledTwo = stallWeek(latest, prev) && rate < STALL_LOSS && !!prev && prev.avgWeight != null && !!prev2 && prev2.avgWeight != null && prev.avgWeight - prev2.avgWeight < STALL_LOSS && prev.week - prev2.week === 1;
+
+  if (!stalledTwo) {
+    messages.unshift(rateText, rate < STALL_LOSS ? 'No real loss this week. One week is noise: no change yet. If next week is flat too, the check-in will suggest a small trim.' : 'A little under target. Keep the plan and check again next week.');
+    return { status: 'slow', headline: rate < STALL_LOSS ? 'Flat this week' : 'A bit slow', messages, proposals, metrics };
   }
 
   const adherence = ((prev as WeekStats).daysOnPlan + latest.daysOnPlan) / 14;
   const pct = Math.round(adherence * 100);
-
   if (adherence < 0.7) {
-    messages.unshift(`Above the band for 2 weeks, but only ${pct}% of days were on plan. Cutting food now would not fix that. Fix the basics first:`);
-    messages.push('Meal prep on Friday morning and Tuesday evening.');
-    messages.push('Eat the planned snacks: they stop the 4 pm and night cravings.');
-    messages.push('Bad day? Do the 30-minute minimum version instead of skipping.');
-    messages.push('One planned treat per week: move it, do not add a second.');
-    return { status: 'aboveLowAdherence', headline: 'Fix adherence first', messages, proposals, metrics };
+    messages.unshift(`Flat for 2 weeks, but only ${pct}% of days were on plan. Cutting food now would not fix that. Fix the basics first:`);
+    messages.push('Tick the meals you eat, every day.', 'Eat the planned snacks: they stop the 4 pm and night cravings.', 'Bad day? Use busy-day mode or the 30-minute minimum workout instead of skipping.');
+    return { status: 'stalledLowAdherence', headline: 'Fix adherence first', messages, proposals, metrics };
   }
 
-  if (adherence < 0.85) {
-    messages.unshift(`Above the band for 2 weeks with ${pct}% of days on plan. No change yet: hit 85% for two weeks and the scale should follow.`);
-    return { status: 'aboveMidAdherence', headline: 'Almost there: aim for 85%', messages, proposals, metrics };
-  }
-
-  const currentSteps = stepTarget(ctx.currentWeek, ctx.stepsAdjust, Infinity);
-  if (currentSteps < HARD_LIMITS.stepsMax) {
-    const add = Math.min(1500, HARD_LIMITS.stepsMax - currentSteps);
-    proposals.push({
-      id: `${latest.weekStart}:steps`,
-      title: 'More steps',
-      reason: `Above the band for 2 weeks with ${pct}% adherence. Steps first: they cost no food and help blood sugar.`,
-      change: `Daily step target +${add.toLocaleString('en-US')} (to ${(currentSteps + add).toLocaleString('en-US')}).`,
-      apply: [{ type: 'stepsAdjust', value: ctx.stepsAdjust + add }],
-    });
-    return { status: 'above', headline: 'Above band 2 weeks: add steps', messages, proposals, metrics };
-  }
-
-  const newAdj = ctx.kcalAdjust - 150;
+  const newAdj = ctx.kcalAdjust - KCAL_DOWN;
   const okFloor = ctx.planAvgKcal + newAdj >= HARD_LIMITS.kcalFloor;
   const limit = checkKcalAdjust(newAdj, { planAvgKcal: ctx.planAvgKcal, doctorCleared: ctx.doctorCleared, stepsBase: weekTarget(ctx.currentWeek).steps, cardioBase: weekTarget(ctx.currentWeek).cardio });
   if (okFloor && limit.ok) {
     proposals.push({
-      id: `${latest.weekStart}:kcal-150`,
+      id: `${latest.weekStart}:kcal-${KCAL_DOWN}`,
       title: 'Small calorie trim',
-      reason: `Above the band for 2 weeks with ${pct}% adherence, and steps are already at ${HARD_LIMITS.stepsMax.toLocaleString('en-US')}.`,
-      change: `kcal target -150 per day. Suggested way: skip the night banana or cut 1 tsp of oil per day. New adjustment: ${newAdj} kcal.`,
+      reason: `Weight has been flat for 2 weeks with ${pct}% of days on plan.`,
+      change: `kcal target -${KCAL_DOWN} per day. Easy way: 1 less thumb of oil or skip the night banana. New adjustment: ${newAdj} kcal.`,
       apply: [{ type: 'kcalAdjust', value: newAdj }],
     });
-    return { status: 'above', headline: 'Above band 2 weeks: small trim', messages, proposals, metrics };
+    messages.unshift(rateText);
+    return { status: 'stalled', headline: 'Flat for 2 weeks: small trim', messages, proposals, metrics };
   }
 
-  messages.unshift(
-    'Above the band for 2 weeks, but the hard limits are reached (12,000 steps, about 1,700 kcal). Do not cut further. Get a doctor and lab review and talk to a coach before changing anything.',
-  );
-  return { status: 'limitsReached', headline: 'Hard limits reached', messages, proposals, metrics };
+  messages.unshift('Flat for 2 weeks, but the calorie floor (about 1,700 kcal) is reached. Do not cut further. Get a doctor and lab review before changing anything.');
+  return { status: 'limitsReached', headline: 'Calorie floor reached', messages, proposals, metrics };
 }
 
 // Recovery triggers ------------------------------------------------------------
@@ -269,7 +243,7 @@ export function deloadProposal(today: ISODate, reasons: string[], kcalAdjust: nu
     id: `${today}:deload`,
     title: 'Take a 7-day deload',
     reason: reasons.join(' '),
-    change: `Deload until ${until}: half the sets, about 90% weights, RIR 4, plus 150 kcal per day for that week.`,
+    change: `Deload until ${until}: half the sets, about 90% weights, plus 150 kcal per day for that week.`,
     apply: [{ type: 'deloadUntil', value: until }],
   };
 }

@@ -99,7 +99,7 @@ export interface DayLog {
   note?: string;
   cardioMinutes?: number;
   cardioType?: string;
-  /** Session moved onto this day ("Do Upper A today instead"), or 'skip'. */
+  /** Session moved onto this day ("Do bench day today instead"), or 'skip'. */
   sessionOverride?: SessionKey | 'skip';
   cravings?: number;
   /** Optional 20-minute walk after lifting (bonus points). */
@@ -108,6 +108,8 @@ export interface DayLog {
   extras?: ExtraFood[];
   checkinDone?: boolean;
   morningSeen?: boolean;
+  /** Busy day / minimum effort mode: 3 simple meals plus the protein target. */
+  busy?: boolean;
 }
 
 export interface BodyEntry {
@@ -131,7 +133,9 @@ export interface SetLog {
   setIndex: number;
   weight: number | null;
   reps: number | null; // seconds for timed exercises
-  rir: number | null; // 4 means 4+
+  rir: number | null; // legacy field, no longer asked
+  /** Form was clean on this set. Missing/null counts as clean. */
+  clean?: boolean | null;
   done: boolean;
 }
 
@@ -198,6 +202,9 @@ export interface ExtraFood {
   protein: number;
   time: number; // epoch ms
   treat?: boolean;
+  /** Logged by portion: food id from data/foods and how many portions. kcal/protein are totals. */
+  foodId?: string;
+  qty?: number;
 }
 
 export type EntryKind = 'weight' | 'waist' | 'steps' | 'sleep' | 'energy' | 'hunger' | 'water' | 'cardio' | 'bp' | 'note' | 'food';

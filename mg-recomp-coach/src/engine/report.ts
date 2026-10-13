@@ -30,7 +30,7 @@ export function weeklyReport(data: AppData, sunday: ISODate): string {
     `Week ${s.week} report (${formatShort(sunday)} - ${formatShort(end)})`,
     `Average weight: ${avg} (change vs last week: ${change}), expected band: ${band.low.toFixed(1)}-${band.high.toFixed(1)} kg`,
     `Waist: ${s.waist != null ? `${s.waist} cm` : 'not measured'}`,
-    `Workouts: ${s.workouts.full + s.workouts.minimum + s.workouts.walk} of 4 (full ${s.workouts.full} / minimum ${s.workouts.minimum} / walk ${s.workouts.walk})`,
+    `Workouts: ${s.workouts.full + s.workouts.minimum + s.workouts.walk} of 3 (full ${s.workouts.full} / minimum ${s.workouts.minimum} / walk ${s.workouts.walk})`,
     `Average steps: ${s.avgSteps != null ? s.avgSteps.toLocaleString('en-US') : 'n/a'} (target ${stepTarget(t, data.adjust.stepsAdjust).toLocaleString('en-US')})`,
     `Days on plan: ${s.daysOnPlan} of 7`,
     `Hunger / energy / sleep: ${fmt(s.avgHunger)} / ${fmt(s.avgEnergy)} / ${fmt(s.avgSleep, ' hours')}`,

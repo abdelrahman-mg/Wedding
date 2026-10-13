@@ -16,7 +16,7 @@ function wk(week: number, offset: number, daysOnPlan = 7, extra: Partial<WeekSta
     avgSleep: 7,
     avgEnergy: 3,
     avgHunger: 3,
-    workouts: { full: 4, minimum: 0, walk: 0, credit: 4 },
+    workouts: { full: 3, minimum: 0, walk: 0, credit: 3 },
     painFlags: 0,
     holiday: false,
     ...extra,
@@ -33,108 +33,102 @@ const ctx = (over: Partial<ReviewCtx> = {}): ReviewCtx => ({
   ...over,
 });
 
-describe('weight vs band (6.2)', () => {
-  test('inside band: no change', () => {
-    const r = weeklyReview([wk(4, 0.5), wk(5, 1.0)], ctx());
+const wa = (week: number, avg: number | null, daysOnPlan = 7, extra: Partial<WeekStats> = {}) => ({ ...wk(week, 0, daysOnPlan, extra), avgWeight: avg, weighIns: avg == null ? 1 : 7 });
+
+describe('weekly check-in: 0.3-0.7 kg a week', () => {
+  test('losing 0.5 kg vs the week before is on track', () => {
+    const r = weeklyReview([wa(3, 108.5), wa(4, 108.0)], ctx());
     expect(r.status).toBe('onTrack');
     expect(r.proposals).toHaveLength(0);
+    expect(r.metrics.ratePerWeek).toBe(0.5);
+    expect(r.metrics.changeVsPrev).toBe(-0.5);
+    expect(r.metrics.prevAvg).toBe(108.5);
   });
 
-  test('above band 2 weeks, adherence 90%, steps below 12,000: steps +1,500', () => {
-    // 13 of 14 days = 93%
-    const r = weeklyReview([wk(4, 2, 6), wk(5, 2.2, 7)], ctx({ currentWeek: 6 }));
-    expect(r.status).toBe('above');
-    expect(r.proposals).toHaveLength(1);
-    expect(r.proposals[0].apply).toEqual([{ type: 'stepsAdjust', value: 1500 }]);
+  test('the edges of the range are on track', () => {
+    expect(weeklyReview([wa(3, 108.3), wa(4, 108.0)], ctx()).status).toBe('onTrack');
+    expect(weeklyReview([wa(3, 108.7), wa(4, 108.0)], ctx()).status).toBe('onTrack');
   });
 
-  test('steps increase is capped at 12,000 total', () => {
-    // week 11 base is 11,000: only +1,000 allowed
-    const r = weeklyReview([wk(9, 2, 7), wk(10, 2, 7)], ctx({ currentWeek: 11 }));
-    expect(r.proposals[0].apply).toEqual([{ type: 'stepsAdjust', value: 1000 }]);
-  });
-
-  test('above band at 12,000 steps: kcal -150', () => {
-    const r = weeklyReview([wk(4, 2, 7), wk(5, 2, 6)], ctx({ currentWeek: 6, stepsAdjust: 2000 }));
-    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: -150 }]);
-  });
-
-  test('above band with adherence 60%: no cuts, fixes instead', () => {
-    const r = weeklyReview([wk(4, 2, 4), wk(5, 2, 4)], ctx()); // 8/14 = 57%
-    expect(r.status).toBe('aboveLowAdherence');
-    expect(r.proposals).toHaveLength(0);
-    expect(r.messages.join(' ')).toMatch(/Meal prep/);
-  });
-
-  test('adherence 70-85%: mild message, no change', () => {
-    const r = weeklyReview([wk(4, 2, 5), wk(5, 2, 6)], ctx()); // 11/14 = 79%
-    expect(r.status).toBe('aboveMidAdherence');
-    expect(r.proposals).toHaveLength(0);
-  });
-
-  test('above band only one week: no change', () => {
-    const r = weeklyReview([wk(4, 0), wk(5, 2)], ctx());
-    expect(r.status).toBe('aboveOneWeek');
-    expect(r.proposals).toHaveLength(0);
-  });
-
-  test('below band: +200 kcal', () => {
-    const r = weeklyReview([wk(4, -0.5), wk(5, -1.8)], ctx());
-    expect(r.status).toBe('below');
-    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: 200 }]);
-  });
-
-  test('losing > 1.3 kg/week for 2 weeks: +200 kcal', () => {
-    const weeks = [
-      { ...wk(3, 0), avgWeight: 106 },
-      { ...wk(4, 0), avgWeight: 104.5 },
-      { ...wk(5, 0), avgWeight: 103.1 },
-    ];
-    const r = weeklyReview(weeks, ctx());
+  test('losing faster than 0.7 kg suggests a little more food', () => {
+    const r = weeklyReview([wa(3, 109.0), wa(4, 107.9)], ctx());
     expect(r.status).toBe('fastLoss');
-    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: 200 }]);
+    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: 100 }]);
+    expect(r.proposals[0].title).toMatch(/more/);
   });
 
-  test('1,700 kcal floor blocks further cuts', () => {
-    const r1 = weeklyReview([wk(4, 2), wk(5, 2)], ctx({ stepsAdjust: 2000, planAvgKcal: 1800 }));
+  test('raising calories stacks on an existing adjustment', () => {
+    const r = weeklyReview([wa(3, 109.0), wa(4, 107.9)], ctx({ kcalAdjust: -100 }));
+    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: 0 }]);
+  });
+
+  test('a bit slow (0.1-0.3 kg): no change', () => {
+    const r = weeklyReview([wa(3, 108.5), wa(4, 108.3)], ctx());
+    expect(r.status).toBe('slow');
+    expect(r.proposals).toHaveLength(0);
+  });
+
+  test('one flat week is noise: no change', () => {
+    const r = weeklyReview([wa(3, 108.5), wa(4, 108.5)], ctx());
+    expect(r.status).toBe('slow');
+    expect(r.proposals).toHaveLength(0);
+    expect(r.messages.join(' ')).toMatch(/next week is flat too/);
+  });
+
+  test('flat for 2 weeks with good adherence suggests a small trim', () => {
+    const r = weeklyReview([wa(3, 108.5), wa(4, 108.5), wa(5, 108.6)], ctx());
+    expect(r.status).toBe('stalled');
+    expect(r.proposals[0].apply).toEqual([{ type: 'kcalAdjust', value: -100 }]);
+  });
+
+  test('flat for 2 weeks with poor adherence: fix the basics, no cut', () => {
+    const r = weeklyReview([wa(3, 108.5, 4), wa(4, 108.5, 4), wa(5, 108.6, 4)], ctx());
+    expect(r.status).toBe('stalledLowAdherence');
+    expect(r.proposals).toHaveLength(0);
+  });
+
+  test('the calorie floor blocks further trims', () => {
+    const r1 = weeklyReview([wa(3, 108.5), wa(4, 108.5), wa(5, 108.6)], ctx({ planAvgKcal: 1750 }));
     expect(r1.status).toBe('limitsReached');
     expect(r1.proposals).toHaveLength(0);
-    // Already cut once: -300 would pass the -250 limit.
-    const r2 = weeklyReview([wk(4, 2), wk(5, 2)], ctx({ stepsAdjust: 2000, kcalAdjust: -150 }));
+    const r2 = weeklyReview([wa(3, 108.5), wa(4, 108.5), wa(5, 108.6)], ctx({ kcalAdjust: -200 }));
     expect(r2.status).toBe('limitsReached');
     expect(r2.messages[0]).toMatch(/doctor/);
   });
 
   test('weeks 1-2 only report', () => {
-    const r = weeklyReview([wk(1, 3), wk(2, 3)], ctx({ currentWeek: 3 }));
+    const r = weeklyReview([wa(1, 109.0), wa(2, 109.5)], ctx({ currentWeek: 3 }));
     expect(r.status).toBe('learning');
     expect(r.proposals).toHaveLength(0);
   });
 
-  test('fewer than 3 weigh-ins: ask for more', () => {
-    const r = weeklyReview([wk(4, 0), { ...wk(5, 0), avgWeight: null, weighIns: 2 }], ctx());
+  test('the first week compares with the start weight', () => {
+    const r = weeklyReview([wa(1, 109.5)], ctx({ currentWeek: 2 }));
+    expect(r.metrics.prevAvg).toBe(110);
+    expect(r.metrics.changeVsPrev).toBe(-0.5);
+  });
+
+  test('no weekly average: ask for more weigh-ins', () => {
+    const r = weeklyReview([wa(4, 108.0), wa(5, null)], ctx());
     expect(r.status).toBe('needData');
   });
 
-  test('waist down with weight in band: recomposition message', () => {
-    const r = weeklyReview([wk(3, 0, 7, { waist: 112 }), wk(4, 0, 7, { waist: 111.5 }), wk(5, 0.5, 7, { waist: 110.8 })], ctx());
+  test('waist down while the scale is slow: recomposition message', () => {
+    const r = weeklyReview([wa(3, 108.6, 7, { waist: 112 }), wa(4, 108.4, 7, { waist: 111.5 }), wa(5, 108.2, 7, { waist: 110.8 })], ctx());
     expect(r.messages.join(' ')).toMatch(/recomposition is working/);
   });
 
-  test('metrics: rate, distance and projection', () => {
-    const weeks = [
-      { ...wk(4, 0), avgWeight: 106 },
-      { ...wk(5, 0), avgWeight: 105 },
-      { ...wk(6, 0), avgWeight: 104 },
-    ];
-    const r = weeklyReview(weeks, ctx({ currentWeek: 7 }));
-    expect(r.metrics.ratePerWeek).toBe(1);
-    expect(r.metrics.projectedWeek12).toBe(98);
-    expect(r.metrics.distanceFromBand).toBeCloseTo(104 - expectedWeight(6, W0), 1);
+  test('metrics: rate, expected path and projection', () => {
+    const r = weeklyReview([wa(4, 108.0), wa(5, 107.5), wa(6, 107.0)], ctx({ currentWeek: 7 }));
+    expect(r.metrics.ratePerWeek).toBe(0.5);
+    expect(r.metrics.projectedWeek12).toBe(104);
+    expect(r.metrics.distanceFromBand).toBeCloseTo(107 - expectedWeight(6, W0), 1);
+    expect(r.metrics.bandLow).toBeCloseTo(110 - 0.7 * 6, 1);
+    expect(r.metrics.bandHigh).toBeCloseTo(110 - 0.3 * 6, 1);
   });
 
-  test('holiday week pauses the band check', () => {
-    const r = weeklyReview([wk(4, 2), wk(5, 2, 7, { holiday: true })], ctx());
+  test('holiday week pauses the check', () => {
+    const r = weeklyReview([wa(4, 108), wa(5, 108.4, 7, { holiday: true })], ctx());
     expect(r.status).toBe('holiday');
     expect(r.proposals).toHaveLength(0);
   });

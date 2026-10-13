@@ -30,7 +30,7 @@ export function useCoachProposals() {
   }, [data, today]);
 }
 
-function ProposalCard({ p, onApply, onLater, error }: { p: Proposal; onApply: () => void; onLater: () => void; error?: string }) {
+export function ProposalCard({ p, onApply, onLater, error }: { p: Proposal; onApply: () => void; onLater: () => void; error?: string }) {
   return (
     <Card tone="alt">
       <T v="caption" muted>PROPOSED CHANGE</T>
@@ -44,6 +44,21 @@ function ProposalCard({ p, onApply, onLater, error }: { p: Proposal; onApply: ()
       </Row>
     </Card>
   );
+}
+
+/** Validates a proposal against the hard limits and applies it. Returns an error text or null. */
+export function useApplyProposal() {
+  const data = useApp((s) => s.data);
+  return (p: Proposal): string | null => {
+    const today = todayISO();
+    const ctx = limitCtxFor(data, today);
+    for (const a of p.apply) {
+      const r = validateChange(a.type, a.value, ctx);
+      if (!r.ok) return r.reason ?? 'Outside the hard limits.';
+    }
+    useApp.getState().applyProposal(p, today);
+    return null;
+  };
 }
 
 /** Coach content: the weekly review or the ask-the-coach chat. Hosted by the Progress tab. */
@@ -172,12 +187,12 @@ export function CoachPanel({ tab }: { tab: 'review' | 'ask' }) {
             ))}
             {m.latestAvg != null ? (
               <View style={{ backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: space.md, gap: 2 }}>
-                <T v="label">Last week: {m.latestAvg} kg · band {m.bandLow}–{m.bandHigh}</T>
-                <T v="label">Rate: {m.ratePerWeek != null ? `${m.ratePerWeek.toFixed(2)} kg/week` : '–'} · vs expected: {m.distanceFromBand != null ? `${m.distanceFromBand > 0 ? '+' : ''}${m.distanceFromBand} kg` : '–'}</T>
+                <T v="label">Last week: {m.latestAvg} kg{m.prevAvg != null ? ` (week before: ${m.prevAvg} kg)` : ''}</T>
+                <T v="label">Rate: {m.ratePerWeek != null ? `${m.ratePerWeek.toFixed(2)} kg/week lost` : '–'} · target 0.3–0.7</T>
                 <T v="label">Week 12 (estimate): {m.projectedWeek12 ?? '–'} kg</T>
               </View>
             ) : null}
-            <T v="caption" muted>Updates every Sunday 20:00 and when you open this tab. Changes are proposed from week 3. Safe maximum: about 1 kg a week.</T>
+            <T v="caption" muted>Updates every Sunday 20:00 and when you open this tab. Changes are proposed from week 3, never from a single weigh-in.</T>
           </Card>
 
           {visible.map((p) => (

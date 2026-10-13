@@ -5,11 +5,12 @@ import { ScrollView, View } from 'react-native';
 import { addDays, diffDays, formatShort, todayISO, weekStart } from '../engine/dates';
 import { weeklyReport } from '../engine/report';
 import { completedWeeks, runReview, streaksAndXp, totalLost, weekStats } from '../engine/selectors';
-import { allMainLiftTrends } from '../engine/strength';
+import { allLiftSeries } from '../engine/strength';
 import { weightBand } from '../engine/targets';
 import { useApp } from '../store/useApp';
 import { LineChart } from '../ui/LineChart';
 import { Banner, Button, Card, Chip, Empty, Row, SectionTitle, Stat, T } from '../ui/kit';
+import { WeeklyCheckIn } from './CheckIn';
 import { space, useTheme } from '../ui/theme';
 import { useUnits } from '../ui/units';
 
@@ -61,7 +62,7 @@ export function StatsView() {
   const weeks = useMemo(() => completedWeeks(data, addDays(today, 1)), [data, today]);
   const review = useMemo(() => runReview(data, today), [data, today]);
   const streak = useMemo(() => streaksAndXp(data, today), [data, today]);
-  const lifts = useMemo(() => allMainLiftTrends(data.workouts), [data.workouts]);
+  const lifts = useMemo(() => allLiftSeries(data.workouts), [data.workouts]);
   const lost = totalLost(data, today);
   const thisWeek = weekStats(data, weekStart(today));
   const lastWeek = weekStats(data, addDays(weekStart(today), -7));
@@ -87,11 +88,12 @@ export function StatsView() {
     <>
       {data.settings.demoMode ? <Banner tone="accent" icon="star" text="Demo mode: these charts use fake data." /> : null}
 
+      <WeeklyCheckIn />
+
       <Row wrap gap={space.sm}>
         <Stat label="Total lost (weekly avg)" value={fmtKg(lost)} />
         <Stat label="This week vs last" value={lostThisWeek != null ? fmtKg(-lostThisWeek, true) : '–'} />
-        <Stat label="Rate (last 2 wks)" value={review.metrics.ratePerWeek != null ? `${review.metrics.ratePerWeek.toFixed(2)}` : '–'} sub="kg/week, positive = losing" />
-        <Stat label="Distance from band" value={review.metrics.distanceFromBand != null ? fmtKg(review.metrics.distanceFromBand, true) : '–'} sub="vs expected value" />
+        <Stat label="Rate (last week)" value={review.metrics.ratePerWeek != null ? `${review.metrics.ratePerWeek.toFixed(2)}` : '–'} sub="kg/week, positive = losing" />
         <Stat label="Body fat (estimate)" value={bfEst != null ? `${bfEst}%` : `${data.profile.bodyFatEst}%`} sub={`start ${data.profile.bodyFatEst}% (estimate, not measured)`} />
         <Stat label="Week 12 projection" value={review.metrics.projectedWeek12 != null ? fmtKg(review.metrics.projectedWeek12) : '–'} sub="estimate if the rate holds" />
         <Stat label="Workouts done" value={String(workoutsDone)} />
@@ -117,7 +119,7 @@ export function StatsView() {
           emptyText="No weigh-ins yet. Weigh in tomorrow morning after the toilet."
           a11ySummary={`Weight chart. ${weights.length} weigh-ins. Latest ${weights.length ? weights[weights.length - 1].w : 'none'} kilograms.`}
         />
-        <T v="caption" muted>Dots: daily weigh-ins. Line: 7-day average. Shaded: expected band (±1.5 kg). Dashed: start weight.</T>
+        <T v="caption" muted>Dots: daily weigh-ins. Line: 7-day average. Shaded: target path (losing 0.3-0.7 kg a week). Dashed: start weight.</T>
       </Card>
 
       <SectionTitle>Waist</SectionTitle>
@@ -126,20 +128,25 @@ export function StatsView() {
         <T v="caption" muted>Target: down 10-14 cm by week 12.</T>
       </Card>
 
-      <SectionTitle>Strength (estimated, Epley)</SectionTitle>
+      <SectionTitle>Lifts over time</SectionTitle>
       {lifts.every((l) => l.series.length === 0) ? (
-        <Empty title="No lifts yet" text="Log your first workout in Gym. Strength trends appear after two sessions." action="Go to Gym" onPress={() => router.push('/gym')} />
+        <Empty title="No lifts yet" text="Log your first workout in Gym. Each lift gets a chart of your heaviest set per session." action="Go to Gym" onPress={() => router.push('/gym')} />
       ) : (
         lifts.map((l) =>
           l.series.length ? (
             <Card key={l.key}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <T v="bodyStrong">{l.name}</T>
-                <T v="label" color={(l.change ?? 0) >= 0 ? c.success : c.warning}>
-                  {l.change != null ? `${l.change > 0 ? '+' : ''}${l.change}% vs first` : 'first session'}
+                <T v="label" color={(l.gain ?? 0) >= 0 ? c.success : c.warning}>
+                  {l.gain != null ? `${l.gain > 0 ? '+' : ''}${l.gain} kg since the start` : `${l.series[0].weight} kg`}
                 </T>
               </Row>
-              <LineChart height={120} series={[{ id: l.key, points: l.series.map((p) => ({ x: x(p.date), y: p.value, label: `${formatShort(p.date)}: ${p.value} kg est.` })), color: c.accent, dots: true }]} xFmt={xFmt} />
+              <LineChart
+                height={130}
+                series={[{ id: l.key, points: l.series.map((p) => ({ x: x(p.date), y: p.weight, label: `${formatShort(p.date)}: ${p.weight} kg × ${p.reps}` })), color: c.accent, dots: true }]}
+                xFmt={xFmt}
+                yFmt={(n) => n.toFixed(0)}
+              />
             </Card>
           ) : null,
         )
@@ -181,7 +188,7 @@ export function StatsView() {
                     <T style={{ width: 96 }}>{u.w(b.low).toFixed(1)}–{u.w(b.high).toFixed(1)}</T>
                     <T style={{ width: 64 }}>{w.waist != null ? u.l(w.waist) : '–'}</T>
                     <T style={{ width: 64 }}>{w.daysOnPlan}/7</T>
-                    <T style={{ width: 64 }}>{w.workouts.credit}/4</T>
+                    <T style={{ width: 64 }}>{w.workouts.credit}/3</T>
                     <T style={{ width: 64 }}>{w.avgSteps ?? '–'}</T>
                     <T style={{ width: 64 }}>{w.avgSleep ?? '–'}</T>
                     <T style={{ width: 64 }}>{w.avgEnergy ?? '–'}</T>

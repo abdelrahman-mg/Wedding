@@ -94,7 +94,7 @@ export function PlanHub() {
               <View style={{ flex: 1 }}>
                 <T v="label">
                   {PHASES[w.phase].name}
-                  {w.lifting === 'deload' ? ' · deload' : w.lifting === 'easeIn' ? ' · ease-in' : ''}
+                  {w.lifting === 'deload' ? ' · deload' : w.lifting === 'easeIn' ? ' · learning' : ''}
                   {cur ? ' · NOW' : ''}
                 </T>
                 <T v="caption" muted>

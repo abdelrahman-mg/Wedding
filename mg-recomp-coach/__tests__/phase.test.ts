@@ -1,27 +1,27 @@
 import { addDays } from '../src/engine/dates';
 import { defaultData } from '../src/engine/defaults';
-import { deloadLoad, isDeload, targetRir, workingSets } from '../src/engine/phase';
+import { deloadLoad, isDeload, isLearningPhase, workingSets } from '../src/engine/phase';
 import { countDroppingExercises, deloadProposal, earlyDeloadCheck } from '../src/engine/rules';
 import { dayContext } from '../src/engine/selectors';
 import type { ExerciseSession } from '../src/engine/progression';
 
 describe('phase logic (5.6)', () => {
-  test('ease-in weeks 1-2: min(sets, 2) at RIR 3-4', () => {
-    expect(workingSets(3, 1, false)).toBe(2);
-    expect(workingSets(2, 2, false)).toBe(2);
-    expect(targetRir('2-3', 1, false)).toBe('3-4');
+  test('learning phase covers weeks 1-3 and keeps the full prescription', () => {
+    expect([1, 2, 3].every(isLearningPhase)).toBe(true);
+    expect(isLearningPhase(4)).toBe(false);
+    expect(isLearningPhase(0)).toBe(false);
+    expect(workingSets(4, 1, false)).toBe(4);
   });
 
   test('full sets weeks 3-5 and 7-11', () => {
     for (const w of [3, 4, 5, 7, 8, 9, 10, 11]) expect(workingSets(3, w, isDeload(w, '2026-01-01', null))).toBe(3);
   });
 
-  test('deload weeks 6 and 12: ceil(sets/2), RIR 4, ~90% load', () => {
+  test('deload weeks 6 and 12: ceil(sets/2), ~90% load', () => {
     expect(isDeload(6, '2026-01-01', null)).toBe(true);
     expect(isDeload(12, '2026-01-01', null)).toBe(true);
     expect(workingSets(3, 6, true)).toBe(2);
     expect(workingSets(2, 12, true)).toBe(1);
-    expect(targetRir('2-3', 6, true)).toBe('4');
     expect(deloadLoad(50)).toBe(45);
   });
 

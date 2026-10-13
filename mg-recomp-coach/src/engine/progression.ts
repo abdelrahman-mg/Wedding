@@ -1,14 +1,16 @@
 // Double progression per exercise (section 5.5). Pure functions.
 import type { ExerciseDef } from '../data/sessions';
 import { diffDays } from './dates';
-import { roundLoad } from './phase';
+import { deloadLoad, roundLoad } from './phase';
 import { epley } from './strength';
 import type { ISODate, SetLog, WorkoutLog } from './types';
 
 export interface LoggedSet {
   weight: number | null;
   reps: number | null;
-  rir: number | null;
+  rir?: number | null;
+  /** false = form was not clean. Missing counts as clean. */
+  clean?: boolean | null;
 }
 
 export interface ExerciseSession {
@@ -17,7 +19,7 @@ export interface ExerciseSession {
   sets: LoggedSet[];
 }
 
-export type SuggestionKind = 'first' | 'addLoad' | 'hold' | 'reduce' | 'addRep' | 'topReached' | 'addTime' | 'addSet';
+export type SuggestionKind = 'first' | 'addLoad' | 'hold' | 'deload' | 'addRep' | 'topReached' | 'addTime' | 'addSet' | 'light';
 
 export interface Suggestion {
   kind: SuggestionKind;
@@ -33,7 +35,7 @@ export interface Suggestion {
   lastSummary: string | null;
 }
 
-export const FIRST_TIME_MESSAGE = 'Pick a weight you could lift about 12 times. Start the first set at RIR 3.';
+export const FIRST_TIME_MESSAGE = 'First time: start light, a weight you could lift 3-4 more times. Form first, the weight comes later.';
 export const STALL_MESSAGE =
   'No progress for 3 sessions. Check sleep, protein and calories first. Then drop the load 10% and rebuild.';
 
@@ -72,6 +74,13 @@ export function summarize(s: ExerciseSession, timed?: boolean): string {
 export function qualifying(def: ExerciseDef, history: ExerciseSession[]): ExerciseSession[] {
   const need = Math.min(2, def.sets);
   return history.filter((s) => !s.deload && s.sets.filter((x) => x.reps != null).length >= need);
+}
+
+/** Every prescribed set logged, every rep at the top of the range, form clean. */
+export function hitAll(def: ExerciseDef, s: ExerciseSession): boolean {
+  const [, top] = range(def);
+  const logged = s.sets.filter((x) => x.reps != null);
+  return logged.length >= def.sets && logged.every((x) => (x.reps as number) >= top && x.clean !== false);
 }
 
 export function detectStall(sessions: ExerciseSession[]): { stall: boolean; suggestSwap: boolean } {
@@ -154,8 +163,6 @@ export function suggestProgression(def: ExerciseDef, history: ExerciseSession[])
   const weighted = isWeighted(last);
   const weight = weighted ? topWeight(last) : null;
   const allTop = reps.every((r) => r >= top);
-  const allRirOk = logged.every((x) => x.rir == null || x.rir >= 2);
-  const anyBelow = reps.some((r) => r < bottom);
 
   // Bodyweight (no load): progress reps first.
   if (!weighted) {
@@ -166,8 +173,10 @@ export function suggestProgression(def: ExerciseDef, history: ExerciseSession[])
     return withStall({ ...base, kind: 'addRep', targetReps: target, message: `Try +1 rep on any set (aim for ${target}).` });
   }
 
-  if (allTop && allRirOk) {
-    const inc = def.lower ? 5 : 2.5;
+  const inc = def.inc || (def.lower ? 5 : 2.5);
+
+  // All prescribed sets and reps hit with clean form: add load.
+  if (hitAll(def, last)) {
     const next = roundLoad((weight as number) + inc);
     const machine = MACHINE_RE.test(def.name) ? ' On a machine: move to the next pin.' : '';
     return withStall({
@@ -175,34 +184,53 @@ export function suggestProgression(def: ExerciseDef, history: ExerciseSession[])
       kind: 'addLoad',
       weight: next,
       targetReps: bottom,
-      message: `All sets hit ${top} at RIR 2+. Add ${inc} kg: ${next} kg x ${bottom}.${machine}`,
+      message: `All reps hit with clean form. Add ${inc} kg: ${next} kg x ${bottom}.${machine}`,
     });
   }
 
-  if (anyBelow) {
-    const prev = q.length >= 2 ? q[q.length - 2] : null;
-    const prevBelow = prev ? prev.sets.some((x) => x.reps != null && (x.reps as number) < bottom) : false;
-    if (prevBelow) {
-      const reduced = Math.round((weight as number) * 0.925 * 2) / 2;
-      return withStall({
-        ...base,
-        kind: 'reduce',
-        weight: reduced,
-        targetReps: bottom,
-        message: `Below ${bottom} reps two sessions in a row. Drop to ${reduced} kg (about 7.5% less) and rebuild with clean form.`,
-      });
-    }
+  // Missed twice in a row: 10% deload and rebuild.
+  const prev = q.length >= 2 ? q[q.length - 2] : null;
+  if (prev && !hitAll(def, prev)) {
+    const deloaded = deloadLoad(weight as number);
     return withStall({
       ...base,
-      kind: 'hold',
-      weight,
+      kind: 'deload',
+      weight: deloaded,
       targetReps: bottom,
-      message: `Some sets were below ${bottom}. Keep ${weight} kg and aim for ${bottom} clean reps.`,
+      message: `Didn't hit every rep cleanly two sessions in a row. Take a 10% deload: ${deloaded} kg x ${bottom}, then build back up.`,
     });
   }
 
-  const target = Math.min(top, Math.min(...reps) + 1);
-  return withStall({ ...base, kind: 'addRep', weight, targetReps: target, message: `Same ${weight} kg. Try +1 rep on any set (aim for ${target}).` });
+  const slipped = last.sets.some((x) => x.clean === false);
+  const target = Math.min(top, Math.max(bottom, Math.min(...reps) + 1));
+  return withStall({
+    ...base,
+    kind: reps.some((r) => r < bottom) ? 'hold' : 'addRep',
+    weight,
+    targetReps: target,
+    message: `${slipped ? 'Form slipped last time.' : 'Not every rep was hit last time.'} Repeat ${weight} kg and aim for ${top} clean reps on every set.`,
+  });
+}
+
+/** Light day (e.g. light squat): weight follows a percentage of the heavy lift's latest working weight. */
+export function suggestLight(def: ExerciseDef, mainHistory: ExerciseSession[], mainName: string): Suggestion {
+  const [bottom] = range(def);
+  const main = [...mainHistory].reverse().find((s) => !s.deload && topWeight(s) > 0);
+  const base: Suggestion = {
+    kind: 'light',
+    weight: null,
+    targetReps: bottom,
+    sets: null,
+    message: `Light day: do ${mainName} first on its own day. Then this is about ${Math.round((def.lightOf?.pct ?? 0.75) * 100)}% of it.`,
+    stall: false,
+    stallMessage: null,
+    stallWeight: null,
+    suggestSwap: false,
+    lastSummary: null,
+  };
+  if (!main || !def.lightOf) return { ...base, kind: 'first', message: `Light day: start with a weight you could lift 8+ times. It will follow your ${mainName} once that is logged.` };
+  const w = roundLoad(topWeight(main) * def.lightOf.pct);
+  return { ...base, weight: w, message: `Light day: ${w} kg x ${bottom} (${Math.round(def.lightOf.pct * 100)}% of your ${mainName}). Fast, smooth, perfect form.` };
 }
 
 /** Build per-exercise history from workout logs, keyed by the name actually used. */
@@ -214,7 +242,7 @@ export function historyFor(workouts: WorkoutLog[], nameUsed: string, beforeId?: 
     if (w.kind === 'walk') continue;
     const sets = w.sets.filter((s: SetLog) => s.nameUsed === nameUsed && s.done);
     if (sets.length === 0) continue;
-    out.push({ date: w.date, deload: w.deload, sets: sets.map((s) => ({ weight: s.weight, reps: s.reps, rir: s.rir })) });
+    out.push({ date: w.date, deload: w.deload, sets: sets.map((s) => ({ weight: s.weight, reps: s.reps, rir: s.rir, clean: s.clean })) });
   }
   return out;
 }

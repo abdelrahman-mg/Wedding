@@ -1,4 +1,4 @@
-import { getMeal, SLOT_ORDER, type Slot } from '../data/meals';
+import { BUSY_PLAN, getMeal, SLOT_ORDER, type Slot } from '../data/meals';
 import type { DayOfWeek } from '../data/plan';
 import { HARD_LIMITS } from '../data/phases';
 import type { Adjustments, DayLog, PlanState } from './types';
@@ -13,7 +13,8 @@ export function isGymDay(plan: PlanState, dow: DayOfWeek): boolean {
 }
 
 /** Planned slots for a weekday, in order. PG only on gym days. */
-export function plannedSlots(plan: PlanState, dow: DayOfWeek, gymOverride?: boolean): PlannedSlot[] {
+export function plannedSlots(plan: PlanState, dow: DayOfWeek, gymOverride?: boolean, busy?: boolean): PlannedSlot[] {
+  if (busy) return BUSY_PLAN.map((b) => ({ slot: b.slot, mealId: b.mealId }));
   const day = plan.meals[dow];
   const gym = gymOverride ?? isGymDay(plan, dow);
   const out: PlannedSlot[] = [];

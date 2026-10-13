@@ -1,6 +1,6 @@
 export const BADGES = [
   { id: 'first_workout', name: 'First workout', desc: 'Logged your first workout.' },
-  { id: 'full_week', name: 'First full week', desc: '4 of 4 workouts in one week.' },
+  { id: 'full_week', name: 'First full week', desc: '3 of 3 workouts in one week.' },
   { id: 'streak_7', name: '7-day streak', desc: '7 days in a row at 70+.' },
   { id: 'streak_30', name: '30-day streak', desc: '30 days in a row at 70+.' },
   { id: 'first_pr', name: 'First personal record', desc: 'Beat your best on any exercise.' },

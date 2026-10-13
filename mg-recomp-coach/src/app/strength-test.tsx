@@ -8,7 +8,7 @@ import { Banner, Button, Card, Field, num, Row, Screen, T } from '../ui/kit';
 const ITEMS: { key: keyof Omit<StrengthTest, 'date'>; label: string; unit: string }[] = [
   { key: 'pushups', label: 'Max clean incline push-ups', unit: 'reps' },
   { key: 'legPress10', label: 'Leg press: 10-rep weight', unit: 'kg' },
-  { key: 'row10', label: 'Seated row: 10-rep weight', unit: 'kg' },
+  { key: 'row10', label: 'Barbell row: 10-rep weight', unit: 'kg' },
   { key: 'plankSecs', label: 'Plank hold', unit: 's' },
 ];
 
@@ -28,8 +28,8 @@ export default function StrengthTestScreen() {
       <T v="title">{kind === 'final' ? 'Week 12 test' : 'Baseline test'}</T>
       <T muted>
         {kind === 'final'
-          ? 'Do this on Friday or Saturday of week 12, after the deload sets. Clean reps only, stop at RIR 1.'
-          : 'Optional. Warm up first. Clean reps only, stop at RIR 1. No grinding, no breath-holding.'}
+          ? 'Do this on Friday or Saturday of week 12, after the deload sets. Clean reps only, stop with 1-2 reps left.'
+          : 'Optional. Warm up first. Clean reps only, stop with 1-2 reps left. No grinding, no breath-holding.'}
       </T>
       <Banner tone="warning" text="Breathe out on the effort. Stop at any sharp pain or if the shoulder feels unstable." />
       <Card>

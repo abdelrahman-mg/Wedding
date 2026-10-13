@@ -79,6 +79,20 @@ export const EMERGENCY_SLOTS: Slot[] = ['B', 'L', 'D'];
 
 export const TREAT_MEAL_ID = 'T';
 
+// Busy day / minimum effort mode: three simple meals. Nothing to cook, nothing to choose.
+export const BUSY_MEALS = {
+  Z1: { slot: 'B', name: 'Eggs, foul and bread', desc: '2 boiled eggs, 1 fist foul with a thumb of oil, half baladi loaf, cucumber', kcal: 510, protein: 30 },
+  Z2: { slot: 'L', name: 'Chicken, rice, salad', desc: '2 palms grilled chicken, 1 fist rice, 2 cupped hands salad with a thumb of oil', kcal: 610, protein: 66 },
+  Z3: { slot: 'D', name: 'Tawook plate', desc: '2 palms chicken tawook, half baladi loaf, 2 cupped hands salad, 2 tbsp garlic yogurt', kcal: 570, protein: 69 },
+} satisfies Record<string, MealDef>;
+
+export type BusyId = keyof typeof BUSY_MEALS;
+export const BUSY_PLAN: { slot: Slot; mealId: BusyId }[] = [
+  { slot: 'B', mealId: 'Z1' },
+  { slot: 'L', mealId: 'Z2' },
+  { slot: 'D', mealId: 'Z3' },
+];
+
 export interface AnyMeal {
   id: string;
   name: string;
@@ -91,6 +105,10 @@ export interface AnyMeal {
 export function getMeal(id: string): AnyMeal | undefined {
   if (id in MEALS) {
     const m = MEALS[id as MealId];
+    return { id, ...m };
+  }
+  if (id in BUSY_MEALS) {
+    const m = BUSY_MEALS[id as BusyId];
     return { id, ...m };
   }
   if (id in EMERGENCY) {

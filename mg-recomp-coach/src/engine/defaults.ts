@@ -4,7 +4,7 @@ import { NUTRITION } from '../data/phases';
 import { DEFAULT_MEAL_PLAN, DEFAULT_SESSION_DAYS, DEFAULT_TREAT_DAY } from '../data/plan';
 import type { AppData, PlanState, ReminderId, ReminderSetting, Settings } from './types';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const DEFAULT_REMINDERS: Record<ReminderId, ReminderSetting> = {
   weighin: { enabled: true, time: '07:30' },
@@ -100,7 +100,23 @@ export function defaultData(): AppData {
 type Migration = (d: any) => any;
 
 // Each migration upgrades from version N to N+1. Never edit an existing migration.
+const OLD_SESSION_MAP: Record<string, string> = { UPPER_A: 'BENCH', UPPER_B: 'BENCH', LOWER_A: 'SQUAT', LOWER_B: 'SQUAT' };
+
 const MIGRATIONS: Record<number, Migration> = {
+  // v3 -> v4: new Fri/Sat/Tue powerlifting program. Old session keys are mapped, swaps and days reset.
+  3: (d) => {
+    const dayLogs: Record<string, any> = {};
+    for (const [date, log] of Object.entries<any>(d.dayLogs ?? {})) {
+      const o = log?.sessionOverride;
+      dayLogs[date] = o && OLD_SESSION_MAP[o] ? { ...log, sessionOverride: OLD_SESSION_MAP[o] } : log;
+    }
+    return {
+      ...d,
+      dayLogs,
+      workouts: (d.workouts ?? []).map((w: any) => ({ ...w, sessionKey: OLD_SESSION_MAP[w.sessionKey] ?? w.sessionKey })),
+      plan: { ...d.plan, sessionDays: { ...DEFAULT_SESSION_DAYS }, exerciseSwaps: {} },
+    };
+  },
   // v2 -> v3: added the Log entry feed.
   2: (d) => ({ ...d, entries: d.entries ?? [] }),
   // v1 -> v2: added coachChat, celebrations, restricted flags, reduceMotion.

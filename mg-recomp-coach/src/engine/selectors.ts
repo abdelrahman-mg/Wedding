@@ -23,6 +23,8 @@ export interface DayContext {
   isGym: boolean;
   deload: boolean;
   holiday: boolean;
+  /** Busy day mode: 3 simple meals plus the protein target. */
+  busy: boolean;
   stepTarget: number;
   cardioTarget: number;
   kcalTarget: number;
@@ -48,7 +50,8 @@ export function dayContext(data: AppData, date: ISODate): DayContext {
   const isGym = session != null;
   const deload = isDeload(rw, date, data.adjust.deloadUntil);
   const holiday = data.settings.holidayWeeks.includes(weekStart(date));
-  const slots = plannedSlots(data.plan, dow, isGym);
+  const busy = !!log?.busy;
+  const slots = plannedSlots(data.plan, dow, isGym, busy);
   const triggeredDeload = isTriggeredDeload(date, data.adjust.deloadUntil);
   const kcalTarget = dayKcalTarget(data.plan, dow, { adjust: data.adjust, holiday, deloadActive: triggeredDeload }, isGym);
   const cap = data.settings.doctorCleared ? 15000 : 12000;
@@ -64,6 +67,7 @@ export function dayContext(data: AppData, date: ISODate): DayContext {
     isGym,
     deload,
     holiday,
+    busy,
     stepTarget: stepTarget(rw, data.adjust.stepsAdjust, cap),
     cardioTarget: cardioTarget(rw, data.adjust.cardioAdjust, cardioMax),
     kcalTarget,
@@ -157,7 +161,7 @@ export function weekStats(data: AppData, sunday: ISODate): WeekStats {
   return {
     weekStart: sunday,
     week: start ? statsWeekNumber(start, sunday) : 1,
-    avgWeight: weights.length >= 3 ? Math.round((weights.reduce((a, b) => a + b, 0) / weights.length) * 100) / 100 : null,
+    avgWeight: weights.length >= 2 ? Math.round((weights.reduce((a, b) => a + b, 0) / weights.length) * 100) / 100 : null,
     weighIns: weights.length,
     waist: waists.length ? waists[waists.length - 1] : null,
     daysOnPlan,
@@ -230,7 +234,7 @@ export function pickMessageIndex(history: Record<ISODate, number>, date: ISODate
   return seed % count;
 }
 
-/** Weekly average change vs the start weight (latest week with 3+ weigh-ins). */
+/** Weekly average change vs the start weight (latest week with 2+ weigh-ins). */
 export function totalLost(data: AppData, today: ISODate): number | null {
   const start = data.profile.startDate;
   if (!start) return null;
@@ -266,7 +270,7 @@ export function evaluateBadges(data: AppData, today: ISODate): BadgeId[] {
   const finished = data.workouts.filter((w) => w.finished);
   add('first_workout', finished.some((w) => w.kind !== 'walk'));
   const weeks = completedWeeks(data, addDays(today, 1));
-  add('full_week', weeks.some((w) => w.workouts.full >= 4));
+  add('full_week', weeks.some((w) => w.workouts.full >= 3));
   const { best } = streaksAndXp(data, today);
   add('streak_7', best >= 7);
   add('streak_30', best >= 30);

@@ -22,9 +22,9 @@ export default function Safety() {
       <SectionTitle>Your joints</SectionTitle>
       <Card>
         <T v="bodyStrong">Right shoulder (4 dislocations)</T>
-        <T>No behind-the-neck moves, no dips, no wide-grip or deep-stretch chest flyes, no upright rows, no heavy overhead pressing. Neutral grips, elbows about 45 degrees, controlled range.</T>
+        <T>No behind-the-neck moves, no dips, no wide-grip or deep-stretch chest flyes, no upright rows. Bench and overhead press are in your program because you chose them: use safety bars or a spotter, keep elbows about 45 degrees, controlled range, and stop if the shoulder feels loose, pinches or slips.</T>
         <T v="bodyStrong">Right knee (ACL repair)</T>
-        <T>No jumping, running, pivoting lunges, or heavy end-range leg extensions. Pain-free ranges only.</T>
+        <T>No jumping, running, pivoting lunges, or heavy end-range leg extensions. Squat and deadlift are in your program because you chose them: build the weight slowly, use safety bars, and keep every range pain-free.</T>
         <T v="bodyStrong">{KNEE_SAFETY}</T>
       </Card>
 

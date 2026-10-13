@@ -67,7 +67,7 @@ const SHOULDER_RULES: { re: RegExp; why: string }[] = [
   { re: /\bdips?\b/i, why: 'Dips stretch the front of the shoulder under load. Not allowed with your dislocation history.' },
   { re: /\bfl(y|ye|yes|ies)\b|pec[\s-]?deck(?!.*reverse)|butterfly/i, why: 'Chest flyes take the shoulder into a deep stretch. Not allowed.' },
   { re: /upright\s*row/i, why: 'Upright rows pinch the shoulder joint. Not allowed.' },
-  { re: /overhead\s*press|military\s*press|shoulder\s*press|push\s*press|arnold\s*press|\bOHP\b/i, why: 'Heavy overhead pressing is off the table for your right shoulder.' },
+  { re: /push\s*press/i, why: 'Explosive pressing is not safe for an unstable shoulder. Strict overhead press only.' },
   { re: /snatch|clean\s*and\s*jerk|\bjerk\b|kipping/i, why: 'Explosive overhead lifts are not safe for an unstable shoulder.' },
 ];
 

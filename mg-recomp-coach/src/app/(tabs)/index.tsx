@@ -10,6 +10,7 @@ import { daySummary, pickMessageIndex, streaksAndXp, weekStats } from '../../eng
 import { useCoachProposals } from '../../features/CoachPanel';
 import { Inputs, MomentButtons, Timeline } from '../../features/LogInputs';
 import { MealsCard } from '../../features/Meals';
+import { BusyCard, ProteinTracker } from '../../features/Portions';
 import { useApp } from '../../store/useApp';
 import { Icon } from '../../ui/Icon';
 import { AlertStack, Banner, Button, Card, IconButton, ProgressBar, Ring, Row, Screen, ScreenHeader, SectionTitle, T, type AlertItem } from '../../ui/kit';
@@ -92,7 +93,11 @@ export default function Today() {
 
       <AlertStack items={alerts} />
 
-      {showMorning && ySum ? (
+      {!ctx.busy ? <Button label="Busy day? Minimum-effort mode" icon="bolt" variant="secondary" onPress={() => st.setBusy(date, true)} /> : null}
+
+      {ctx.busy ? <BusyCard key={`busy-${date}`} date={date} /> : null}
+
+      {!ctx.busy && showMorning && ySum ? (
         <Card tone="alt">
           <T v="heading">Morning check-in</T>
           <T>
@@ -111,6 +116,7 @@ export default function Today() {
       ) : null}
 
       {/* Score and targets */}
+      {!ctx.busy ? (
       <Card>
         <Row style={{ alignItems: 'center' }}>
           <Ring size={88} stroke={9} pct={sum.score.total / 100} color={sum.score.total >= 70 ? c.emerald : c.primary} label={`Day score ${sum.score.total} of 100`}>
@@ -146,10 +152,16 @@ export default function Today() {
           </T>
         ) : null}
       </Card>
+      ) : null}
 
       {/* 1. Meals */}
-      <SectionTitle>Meals</SectionTitle>
-      <MealsCard key={`meals-${date}`} date={date} isToday={isToday} />
+      {!ctx.busy ? (
+        <>
+          <ProteinTracker key={`protein-${date}`} date={date} />
+          <SectionTitle>Meals</SectionTitle>
+          <MealsCard key={`meals-${date}`} date={date} isToday={isToday} />
+        </>
+      ) : null}
 
       {/* 2. Workout */}
       <SectionTitle>Workout</SectionTitle>
@@ -170,6 +182,8 @@ export default function Today() {
         </Row>
       </Card>
 
+      {!ctx.busy ? (
+        <>
       {/* 3. Your numbers */}
       <SectionTitle>Your numbers</SectionTitle>
       <T v="caption" muted>Submit any of these whenever you like. Each one saves on its own.</T>
@@ -197,7 +211,7 @@ export default function Today() {
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>
           {[
-            { label: 'Workouts', value: wk.workouts.credit, goal: 4, text: `${wk.workouts.credit}/4` },
+            { label: 'Workouts', value: wk.workouts.credit, goal: 3, text: `${wk.workouts.credit}/3` },
             { label: 'On plan', value: wk.daysOnPlan, goal: 7, text: `${wk.daysOnPlan}/7` },
             { label: 'Steps avg', value: wk.avgSteps ?? 0, goal: ctx.stepTarget, text: wk.avgSteps != null ? `${Math.round(wk.avgSteps / 100) / 10}k` : '–' },
             { label: 'Weigh-ins', value: wk.weighIns, goal: 7, text: `${wk.weighIns}/7` },
@@ -216,6 +230,8 @@ export default function Today() {
       </Card>
 
       <Button label="End-of-day check-in" icon="check" variant="accent" onPress={() => router.push({ pathname: '/checkin', params: { date } })} />
+        </>
+      ) : null}
     </Screen>
   );
 }

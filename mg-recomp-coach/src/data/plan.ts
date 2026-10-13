@@ -20,26 +20,26 @@ export const DEFAULT_MEAL_PLAN: Record<DayOfWeek, DayMeals> = {
   6: { B: 'B3', M: 'M3', L: 'T', D: 'D4', N: 'N4' },
 };
 
-// Gym days are 1, 3, 5, 6. Everything else is rest plus easy cardio.
+// Gym days are Tuesday (deadlift), Friday (squat) and Saturday (bench). Everything else is rest plus easy cardio.
 export const DEFAULT_SESSION_DAYS: Record<DayOfWeek, SessionKey | null> = {
   0: null,
-  1: 'UPPER_A',
-  2: null,
-  3: 'LOWER_A',
+  1: null,
+  2: 'DEADLIFT',
+  3: null,
   4: null,
-  5: 'UPPER_B',
-  6: 'LOWER_B',
+  5: 'SQUAT',
+  6: 'BENCH',
 };
 
 export const DEFAULT_TREAT_DAY: DayOfWeek = 6;
-export const CARDIO_DAYS: DayOfWeek[] = [0, 2, 4];
+export const CARDIO_DAYS: DayOfWeek[] = [0, 1, 3];
 
 // Expected totals from the brief (used only as unit-test fixtures; the app computes them).
 export const DAY_TOTAL_FIXTURES: Record<DayOfWeek, { kcal: number; protein: number }> = {
   0: { kcal: 1875, protein: 172 },
-  1: { kcal: 2035, protein: 175 },
-  2: { kcal: 1860, protein: 157 },
-  3: { kcal: 2015, protein: 172 },
+  1: { kcal: 1930, protein: 174 },
+  2: { kcal: 1965, protein: 158 },
+  3: { kcal: 1910, protein: 171 },
   4: { kcal: 1900, protein: 164 },
   5: { kcal: 1975, protein: 165 },
   6: { kcal: 2035, protein: 153 },

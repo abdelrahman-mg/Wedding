@@ -2,14 +2,18 @@ import { HARD_LIMITS, PHASES, WEEK_TARGETS, type WeekTarget } from '../data/phas
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Expected weekly-average weight for week t (1..12). */
+/** Target loss per week (kg) for the weekly average. */
+export const LOSS_MIN = 0.3;
+export const LOSS_MAX = 0.7;
+
+/** Expected weekly-average weight for week t (1..12): the middle of the target loss rate. */
 export function expectedWeight(t: number, w0: number): number {
-  return r2(w0 - (2.0 + 0.9 * (t - 1)));
+  return r2(w0 - ((LOSS_MIN + LOSS_MAX) / 2) * t);
 }
 
+/** Target path: losing 0.3 kg/week (high edge) to 0.7 kg/week (low edge). */
 export function weightBand(t: number, w0: number): { low: number; high: number; expected: number } {
-  const e = expectedWeight(t, w0);
-  return { low: r2(e - 1.5), high: r2(e + 1.5), expected: e };
+  return { low: r2(w0 - LOSS_MAX * t), high: r2(w0 - LOSS_MIN * t), expected: expectedWeight(t, w0) };
 }
 
 export function weekTarget(week: number): WeekTarget {

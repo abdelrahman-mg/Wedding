@@ -20,8 +20,8 @@ describe('reminder schedule (section 10)', () => {
 
   test('gym reminder only on gym days, weekly review on Sundays', () => {
     const s = buildSchedule(data(), now);
-    for (const p of s.filter((x) => x.title === 'Gym time')) expect([1, 3, 5, 6]).toContain(p.at.getDay());
-    expect(s.filter((x) => x.title === 'Gym time')).toHaveLength(8);
+    for (const p of s.filter((x) => x.title === 'Gym time')) expect([2, 5, 6]).toContain(p.at.getDay());
+    expect(s.filter((x) => x.title === 'Gym time')).toHaveLength(6);
     expect(s.filter((x) => x.title === 'Weekly review').every((x) => x.at.getDay() === 0 && x.at.getHours() === 20)).toBe(true);
   });
 

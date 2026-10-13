@@ -11,19 +11,19 @@ describe('day totals (4.3)', () => {
     expect(t).toEqual(DAY_TOTAL_FIXTURES[dow]);
   });
 
-  test('PG only on gym days 1, 3, 5, 6', () => {
+  test('PG only on gym days 2, 5, 6 (Tue, Fri, Sat)', () => {
     for (const d of DAYS) {
       const hasPG = plannedSlots(plan, d).some((s) => s.slot === 'PG');
-      expect(hasPG).toBe([1, 3, 5, 6].includes(d));
+      expect(hasPG).toBe([2, 5, 6].includes(d));
     }
   });
 
   test('moving a session moves PG with it', () => {
     const p = defaultPlan();
-    p.sessionDays[1] = null;
-    p.sessionDays[2] = 'UPPER_A';
-    expect(plannedSlots(p, 1).some((s) => s.slot === 'PG')).toBe(false);
-    expect(plannedSlots(p, 2).some((s) => s.slot === 'PG')).toBe(true);
+    p.sessionDays[2] = null;
+    p.sessionDays[1] = 'DEADLIFT';
+    expect(plannedSlots(p, 2).some((s) => s.slot === 'PG')).toBe(false);
+    expect(plannedSlots(p, 1).some((s) => s.slot === 'PG')).toBe(true);
   });
 
   test('plan average is about 1,950 kcal', () => {

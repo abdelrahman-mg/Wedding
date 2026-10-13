@@ -16,10 +16,8 @@ function rng(seed: number) {
 }
 
 const START_LOADS: Record<string, number> = {
-  chest_press_machine: 30, seated_cable_row: 30, lat_pulldown_neutral: 30, face_pull: 10, triceps_pushdown: 15, db_curl: 7.5,
-  leg_press: 80, db_rdl: 12.5, hip_thrust: 40, leg_curl: 25, calf_raise: 30,
-  incline_press_machine: 25, chest_supported_row: 30, assisted_pullup: 40, lateral_raise: 4, external_rotation: 5, rope_pushdown: 15, hammer_curl: 7.5, pallof_press: 10,
-  goblet_box_squat: 14, cable_pull_through: 20, hip_thrust_b: 45, seated_leg_curl: 25, hip_abduction: 35, calf_raise_b: 30,
+  squat: 40, rdl: 40, leg_press: 80, deadlift: 50,
+  bench: 30, ohp: 20, barbell_row: 30, biceps_curl: 15, triceps_pushdown: 15, lat_pulldown: 30,
 };
 
 export function buildDemoData(today: ISODate): AppData {
@@ -57,8 +55,8 @@ export function buildDemoData(today: ISODate): AppData {
       cardioMinutes: gymKey ? undefined : [20, 20, 25, 30][week - 1] - (r() > 0.7 ? 10 : 0),
       cardioType: gymKey ? undefined : 'Incline walk',
     };
-    // Weight: about 0.9 kg/week plus a bigger first week, with daily noise.
-    const trend = 110 - 1.6 - 0.9 * (i / 7);
+    // Weight: about 0.5 kg/week with daily noise.
+    const trend = 110 - 0.5 - 0.5 * (i / 7);
     if (r() > 0.15) d.body[date] = { weight: Math.round((trend + (r() - 0.5) * 1.2) * 10) / 10 };
     if (dow === 0) d.body[date] = { ...(d.body[date] ?? {}), waist: Math.round((115 - 0.7 * (i / 7)) * 10) / 10 };
 
@@ -67,22 +65,26 @@ export function buildDemoData(today: ISODate): AppData {
       const sets: SetLog[] = [];
       for (const ex of def.exercises) {
         const n = workingSets(ex.sets, week, false);
-        const load = loads[ex.id];
+        const main = ex.lightOf ? loads[ex.lightOf.id] : undefined;
+        const load = ex.lightOf ? (main ? Math.round((main * ex.lightOf.pct) / 2.5) * 2.5 : undefined) : loads[ex.id];
+        const top = ex.timed ? ex.secs![1] : ex.reps![1];
+        const missed = r() > 0.8;
+        let allHit = true;
         for (let k = 0; k < n; k++) {
-          const top = ex.timed ? ex.secs![1] : ex.reps![1];
-          const bottom = ex.timed ? ex.secs![0] : ex.reps![0];
-          const reps = Math.min(top, bottom + Math.floor(r() * (top - bottom + 2)));
+          const reps = missed && k === n - 1 ? top - 1 : top;
+          if (reps < top) allHit = false;
           sets.push({
             exerciseId: ex.id,
             nameUsed: ex.name,
             setIndex: k,
             weight: ex.bodyweight || ex.timed ? null : load ?? null,
             reps,
-            rir: ex.rir === '-' ? null : 2 + Math.round(r()),
+            rir: null,
+            clean: true,
             done: true,
           });
         }
-        if (load != null) loads[ex.id] = load + (ex.lower ? 5 : 2.5) * (r() > 0.5 ? 1 : 0);
+        if (!ex.lightOf && load != null && allHit) loads[ex.id] = load + ex.inc;
       }
       const w: WorkoutLog = {
         id: `demo-${date}`,
@@ -105,7 +107,7 @@ export function buildDemoData(today: ISODate): AppData {
     { id: 'bp2', date: addDays(today, -13), systolic: 134, diastolic: 84, pulse: 80, time: 'morning' },
     { id: 'bp3', date: addDays(today, -6), systolic: 131, diastolic: 82, pulse: 78, time: 'evening' },
   ];
-  d.painFlags = [{ id: 'p1', date: addDays(today, -9), bodyPart: 'shoulder', note: 'Twinge on lat pulldown', exercise: 'Lat pulldown' }];
+  d.painFlags = [{ id: 'p1', date: addDays(today, -9), bodyPart: 'shoulder', note: 'Twinge on overhead press', exercise: 'Overhead press' }];
   d.planBCount = 6;
   return d;
 }

@@ -5,6 +5,12 @@ import { parseChange } from '../src/services/aiCoach';
 
 const ctx: LimitCtx = { planAvgKcal: 1956, doctorCleared: false, stepsBase: 10000, cardioBase: 35 };
 
+describe('program lifts chosen by the user are allowed', () => {
+  test.each(['Squat', 'Deadlift', 'Bench press', 'Overhead press', 'Barbell row', 'Romanian deadlift', 'Lat pulldown'])('%s is allowed', (name) => {
+    expect(checkExerciseSafety(name).blocked).toBe(false);
+  });
+});
+
 describe('hard limits (6.5)', () => {
   test('kcal adjust cannot go below -250 or the 1,700 floor', () => {
     expect(checkKcalAdjust(-150, ctx).ok).toBe(true);
@@ -54,7 +60,7 @@ describe('joint safety (5.4)', () => {
     ['Bench dips', 'shoulder'],
     ['Dumbbell flyes', 'shoulder'],
     ['Upright row', 'shoulder'],
-    ['Barbell overhead press', 'shoulder'],
+    ['Push press', 'shoulder'],
     ['Box jumps', 'knee'],
     ['Treadmill running', 'knee'],
     ['Walking lunges', 'knee'],
@@ -119,5 +125,23 @@ describe('migration v2 -> v3', () => {
     const old: any = { ...defaultData(), schemaVersion: 2 };
     delete old.entries;
     expect(migrate(old).entries).toEqual([]);
+  });
+});
+
+describe('migration v3 -> v4', () => {
+  test('maps old sessions to the new program and resets days and swaps', () => {
+    const old: any = { ...defaultData(), schemaVersion: 3 };
+    old.plan = { ...old.plan, sessionDays: { 0: null, 1: 'UPPER_A', 2: null, 3: 'LOWER_A', 4: null, 5: 'UPPER_B', 6: 'LOWER_B' }, exerciseSwaps: { leg_press: 'Goblet box squat' } };
+    old.workouts = [{ id: 'w', date: '2026-10-01', sessionKey: 'LOWER_A', kind: 'full', startedAt: 1, durationMin: 50, deload: false, sets: [], finished: true }];
+    old.dayLogs = { '2026-10-02': { meals: {}, water: 0, sessionOverride: 'UPPER_B' } };
+    const m = migrate(old);
+    expect(m.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(m.plan.sessionDays[5]).toBe('SQUAT');
+    expect(m.plan.sessionDays[6]).toBe('BENCH');
+    expect(m.plan.sessionDays[2]).toBe('DEADLIFT');
+    expect(m.plan.sessionDays[1]).toBeNull();
+    expect(m.plan.exerciseSwaps).toEqual({});
+    expect(m.workouts[0].sessionKey).toBe('SQUAT');
+    expect(m.dayLogs['2026-10-02'].sessionOverride).toBe('BENCH');
   });
 });

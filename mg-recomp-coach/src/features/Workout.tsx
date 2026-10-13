@@ -3,13 +3,14 @@ import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, TextInput, View } from 'react-native';
 import { FINISH_MESSAGES } from '../data/messages';
 import { KNEE_SAFETY } from '../data/guides';
-import { altDisplayName, LEG_EXTENSION_OPTIN, LOWER_SESSIONS, SESSIONS, type ExerciseDef } from '../data/sessions';
+import { altDisplayName, findExercise, LOWER_SESSIONS, SESSIONS, type ExerciseDef } from '../data/sessions';
+import { tutorialUrl } from '../data/tutorials';
 import { checkExerciseSafety } from '../engine/limits';
-import { deloadLoad, targetRir, workingSets } from '../engine/phase';
-import { historyFor, isPR, suggestProgression, type ExerciseSession, type Suggestion } from '../engine/progression';
+import { deloadLoad, isLearningPhase, LEARNING_BANNER, workingSets } from '../engine/phase';
+import { historyFor, isPR, suggestLight, suggestProgression, type ExerciseSession, type LoggedSet, type Suggestion } from '../engine/progression';
 import type { SetLog, WorkoutLog } from '../engine/types';
 import { useApp } from '../store/useApp';
 import { celebrate } from '../ui/celebrate';
@@ -18,16 +19,15 @@ import { Banner, Button, Card, Field, ProgressBar, Row, Segmented, Sheet, T } fr
 import { radius, space, type, useTheme } from '../ui/theme';
 import { PainSheet, RedFlagSheet } from './SafetySheets';
 
-const RIR_OPTIONS = [0, 1, 2, 3, 4].map((n) => ({ label: n === 4 ? '4+' : String(n), value: n }));
-
 export interface PlannedExercise {
   def: ExerciseDef;
   nameUsed: string;
   swappedToday: boolean;
   sets: number;
-  rir: string;
   suggestion: Suggestion;
   prefillWeight: number | null;
+  /** Sets of the most recent session with this exercise, for "last time" numbers. */
+  lastSets: LoggedSet[];
 }
 
 function lastTopWeight(h: ExerciseSession[]): number | null {
@@ -49,31 +49,80 @@ export function usePlannedExercises(active: WorkoutLog, week: number, todaySwaps
   const data = useApp((s) => s.data);
   return useMemo(() => {
     let defs = [...SESSIONS[active.sessionKey].exercises];
-    if (active.sessionKey === 'LOWER_A' && data.settings.legExtensionOptIn && week > 6) defs = [...defs, LEG_EXTENSION_OPTIN];
     const hidden = defs.filter((d) => isRestricted(d, data.settings.restricted));
     const shown = defs.filter((d) => !isRestricted(d, data.settings.restricted));
     const list: PlannedExercise[] = shown.map((def) => {
       const nameUsed = todaySwaps[def.id] ?? data.plan.exerciseSwaps[def.id] ?? def.name;
       const history = historyFor(data.workouts, nameUsed);
-      const suggestion = suggestProgression(def, history);
+      let suggestion: Suggestion;
+      if (def.lightOf) {
+        const main = findExercise(def.lightOf.id);
+        const mainName = todaySwaps[def.lightOf.id] ?? data.plan.exerciseSwaps[def.lightOf.id] ?? main?.name ?? def.lightOf.id;
+        suggestion = { ...suggestLight(def, historyFor(data.workouts, mainName), mainName), lastSummary: suggestProgression(def, history).lastSummary };
+      } else {
+        suggestion = suggestProgression(def, history);
+      }
       let sets = workingSets(def.sets, week, active.deload);
       if (def.timed && suggestion.sets && !active.deload && week > 2) sets = Math.min(4, Math.max(sets, suggestion.sets));
       const last = lastTopWeight(history);
       const prefillWeight = def.timed || def.bodyweight ? null : active.deload ? (last ? deloadLoad(last) : null) : suggestion.weight;
-      return { def, nameUsed, swappedToday: !!todaySwaps[def.id], sets, rir: targetRir(def.rir, week, active.deload), suggestion, prefillWeight };
+      const lastSets = history.length ? history[history.length - 1].sets : [];
+      return { def, nameUsed, swappedToday: !!todaySwaps[def.id], sets, suggestion, prefillWeight, lastSets };
     });
     return { list, hidden };
-  }, [active.sessionKey, active.deload, data.workouts, data.plan.exerciseSwaps, data.settings.restricted, data.settings.legExtensionOptIn, todaySwaps, week]);
+  }, [active.sessionKey, active.deload, data.workouts, data.plan.exerciseSwaps, data.settings.restricted, todaySwaps, week]);
 }
 
-function SetRow({ ex, index, existing }: { ex: PlannedExercise; index: number; existing?: SetLog }) {
+function NumInput({ value, onChange, step, label, unit, disabled, decimal }: { value: string; onChange: (v: string) => void; step: number; label: string; unit: string; disabled?: boolean; decimal?: boolean }) {
+  const { c } = useTheme();
+  const bump = (dir: 1 | -1) => {
+    const cur = parseFloat(value.replace(',', '.'));
+    const base = Number.isFinite(cur) ? cur : 0;
+    const next = Math.max(0, Math.round((base + dir * step) * 100) / 100);
+    onChange(String(next));
+  };
+  const btn = (dir: 1 | -1) => (
+    <Pressable
+      onPress={() => bump(dir)}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={`${dir > 0 ? 'Increase' : 'Decrease'} ${label}`}
+      hitSlop={4}
+      style={{ width: 48, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceAlt, opacity: disabled ? 0.4 : 1 }}
+    >
+      <Icon name={dir > 0 ? 'plus' : 'minus'} color={c.primary} size={24} strokeWidth={2.5} />
+    </Pressable>
+  );
+  return (
+    <View style={{ flex: 1, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface }}>
+      {btn(-1)}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
+          placeholder="0"
+          placeholderTextColor={c.textMuted}
+          style={[type.heading, { color: c.text, minHeight: 52, minWidth: 56, textAlign: 'center', paddingVertical: 0 }]}
+          accessibilityLabel={label}
+          editable={!disabled}
+          selectTextOnFocus
+        />
+        <T v="caption" muted style={{ marginTop: -10 }}>{unit}</T>
+      </View>
+      {btn(1)}
+    </View>
+  );
+}
+
+function SetRow({ ex, index, existing, clean }: { ex: PlannedExercise; index: number; existing?: SetLog; clean: boolean }) {
   const { c } = useTheme();
   const upsert = useApp((s) => s.upsertSet);
   const setTimer = useApp((s) => s.setRestTimer);
-  const unit = ex.def.timed ? 's' : 'reps';
+  const unit = ex.def.timed ? 'sec' : 'reps';
+  const last = ex.lastSets[index] ?? ex.lastSets[ex.lastSets.length - 1];
   const [weight, setWeight] = useState(existing?.weight != null ? String(existing.weight) : ex.prefillWeight != null ? String(ex.prefillWeight) : '');
   const [reps, setReps] = useState(existing?.reps != null ? String(existing.reps) : String(ex.suggestion.targetReps));
-  const [rir, setRir] = useState<number | null>(existing?.rir ?? null);
   const done = !!existing?.done;
   const noWeight = !!(ex.def.timed || ex.def.bodyweight);
 
@@ -86,7 +135,8 @@ function SetRow({ ex, index, existing }: { ex: PlannedExercise; index: number; e
       setIndex: index,
       weight: noWeight || !Number.isFinite(w) ? null : w,
       reps: Number.isFinite(r) ? r : null,
-      rir: ex.def.rir === '-' ? null : rir,
+      rir: null,
+      clean,
       done: !done,
     };
     upsert(s);
@@ -96,35 +146,29 @@ function SetRow({ ex, index, existing }: { ex: PlannedExercise; index: number; e
     }
   };
 
-  const inputStyle = [type.bodyStrong, { color: c.text, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.sm, minHeight: 48, minWidth: 64, textAlign: 'center' as const, paddingHorizontal: 6 }];
+  const lastText = last ? `${last.weight ? `${last.weight} kg × ` : ''}${last.reps ?? '-'}${ex.def.timed ? ' s' : ''}` : null;
 
   return (
-    <View style={{ gap: 6, paddingVertical: 6, borderTopWidth: index ? 1 : 0, borderTopColor: c.border, opacity: done ? 0.75 : 1 }}>
-      <Row>
-        <T v="label" style={{ width: 44 }}>Set {index + 1}</T>
-        {!noWeight ? (
-          <Row gap={4}>
-            <TextInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="kg" placeholderTextColor={c.textMuted} style={inputStyle} accessibilityLabel={`Set ${index + 1} weight in kilograms`} editable={!done} />
-            <T v="caption" muted>kg</T>
-          </Row>
-        ) : null}
-        <Row gap={4}>
-          <TextInput value={reps} onChangeText={setReps} keyboardType="number-pad" style={inputStyle} accessibilityLabel={`Set ${index + 1} ${unit}`} editable={!done} />
-          <T v="caption" muted>{unit}</T>
-        </Row>
-        <View style={{ flex: 1 }} />
+    <View style={{ gap: 8, paddingVertical: 10, borderTopWidth: index ? 1 : 0, borderTopColor: c.border, opacity: done ? 0.7 : 1 }}>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <View style={{ flex: 1 }}>
+          <T v="bodyStrong">Set {index + 1}</T>
+          {lastText ? <T v="caption" muted>Last time: {lastText}</T> : null}
+        </View>
         <Pressable
           onPress={toggle}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: done }}
           accessibilityLabel={`Set ${index + 1} done`}
-          style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: done ? c.emerald : c.surfaceAlt, borderWidth: 2, borderColor: done ? c.emerald : c.border }}
+          style={{ width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: done ? c.emerald : c.surfaceAlt, borderWidth: 2, borderColor: done ? c.emerald : c.border }}
         >
-          <Icon name="check" color={done ? '#fff' : c.textMuted} size={26} strokeWidth={2.5} />
+          <Icon name="check" color={done ? '#fff' : c.textMuted} size={28} strokeWidth={2.5} />
         </Pressable>
       </Row>
-      {ex.def.rir !== '-' && !done ? <Segmented label="RIR (reps left in the tank)" value={rir} onChange={setRir} options={RIR_OPTIONS} /> : null}
-      {done && rir != null ? <T v="caption" muted>RIR {rir === 4 ? '4+' : rir}</T> : null}
+      <Row>
+        {!noWeight ? <NumInput value={weight} onChange={setWeight} step={2.5} label={`Set ${index + 1} weight in kilograms`} unit="kg" disabled={done} decimal /> : null}
+        <NumInput value={reps} onChange={setReps} step={ex.def.timed ? 5 : 1} label={`Set ${index + 1} ${unit}`} unit={unit} disabled={done} />
+      </Row>
     </View>
   );
 }
@@ -181,6 +225,15 @@ function ExerciseCard({ ex, active, onSwap, onHurt }: { ex: PlannedExercise; act
   const doneCount = active.sets.filter((s) => s.exerciseId === ex.def.id && s.done).length;
   const range = ex.def.timed ? `${ex.def.secs![0]}-${ex.def.secs![1]} s` : ex.def.reps![0] === ex.def.reps![1] ? `${ex.def.reps![0]}` : `${ex.def.reps![0]}-${ex.def.reps![1]}`;
   const s = ex.suggestion;
+  const upsert = useApp((st) => st.upsertSet);
+  const doneSets = active.sets.filter((x) => x.exerciseId === ex.def.id && x.done);
+  const [clean, setClean] = useState(true);
+  const cleanNow = doneSets.length ? doneSets.every((x) => x.clean !== false) && clean : clean;
+  const toggleClean = () => {
+    const next = !cleanNow;
+    setClean(next);
+    for (const x of doneSets) upsert({ ...x, clean: next });
+  };
   return (
     <Card style={doneCount >= ex.sets ? { borderColor: c.emerald } : undefined}>
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityLabel={`${ex.nameUsed}, ${doneCount} of ${ex.sets} sets done`}>
@@ -202,19 +255,35 @@ function ExerciseCard({ ex, active, onSwap, onHurt }: { ex: PlannedExercise; act
         <>
           <T v="label">
             {ex.sets} x {range}
-            {ex.def.perSide ? ' per side' : ''} · rest {ex.def.rest}s · RIR {ex.rir}
+            {ex.def.perSide ? ' per side' : ''} · rest {ex.def.rest}s
           </T>
           <T muted>{ex.def.cue}</T>
-          {s.lastSummary ? <T v="caption" muted>Last time: {s.lastSummary}</T> : null}
+          <Button label="Watch tutorial" icon="play" small variant="secondary" onPress={() => Linking.openURL(tutorialUrl(ex.def, ex.nameUsed)).catch(() => {})} accessibilityLabel={`Watch tutorial: ${ex.nameUsed}`} />
+          {s.lastSummary ? <T v="caption" muted>Last session: {s.lastSummary}</T> : null}
           <View style={{ backgroundColor: c.surfaceAlt, borderRadius: radius.sm, padding: space.sm }}>
             <T v="label" color={c.primary}>
-              {active.deload ? `Deload: about 90% of last weight${ex.prefillWeight ? ` (${ex.prefillWeight} kg)` : ''}, RIR 4.` : s.message}
+              {active.deload ? `Deload: about 90% of last weight${ex.prefillWeight ? ` (${ex.prefillWeight} kg)` : ''}, easy reps.` : s.message}
             </T>
           </View>
-          {s.stall && !active.deload ? <Banner tone="warning" text={s.stallMessage ?? ''} /> : null}
+          {s.stall && !active.deload && s.kind !== 'deload' ? <Banner tone="warning" text={s.stallMessage ?? ''} /> : null}
           {Array.from({ length: ex.sets }).map((_, i) => (
-            <SetRow key={`${ex.nameUsed}-${i}`} ex={ex} index={i} existing={active.sets.find((x) => x.exerciseId === ex.def.id && x.setIndex === i)} />
+            <SetRow key={`${ex.nameUsed}-${i}`} ex={ex} index={i} clean={cleanNow} existing={active.sets.find((x) => x.exerciseId === ex.def.id && x.setIndex === i)} />
           ))}
+          {!ex.def.timed && ex.def.inc > 0 ? (
+            <Pressable
+              onPress={toggleClean}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: cleanNow }}
+              accessibilityLabel="Form was clean on every set"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 52, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: cleanNow ? c.successSoft : c.warningSoft }}
+            >
+              <Icon name={cleanNow ? 'check' : 'alert'} color={cleanNow ? c.success : c.warning} />
+              <T v="bodyStrong" color={cleanNow ? c.success : c.warning} style={{ flex: 1 }}>
+                {cleanNow ? 'Form was clean' : 'Form slipped (no weight increase next time)'}
+              </T>
+              <T v="caption" muted>tap to change</T>
+            </Pressable>
+          ) : null}
           <Row>
             <Button label="Not available / busy?" icon="swap" small variant="secondary" onPress={onSwap} flex />
             <Button label="Something hurt" icon="alert" small variant="ghost" onPress={onHurt} flex />
@@ -280,9 +349,11 @@ export function WorkoutView({ week }: { week: number }) {
         </Row>
         <ProgressBar label="Session" value={done} max={total} valueText={`${done} / ${total} sets`} />
       </Card>
-      {active.deload ? <Banner tone="info" icon="moon" text="Deload week: lighter on purpose. Half the sets, about 90% weights, RIR 4." /> : null}
-      {LOWER_SESSIONS.includes(active.sessionKey) || active.sessionKey === 'MINIMUM' ? <Banner tone="info" icon="alert" text={`Knee: pain-free range only. ${KNEE_SAFETY}`} /> : null}
-      {!data.checklist.doctor_bp?.done ? <Banner tone="warning" text="BP not yet checked: breathe out on the effort, no breath-holding, no grinding reps." /> : null}
+      {active.deload ? <Banner tone="info" icon="moon" text="Deload week: lighter on purpose. Half the sets, about 90% weights." /> : null}
+      {!active.deload && isLearningPhase(week) ? <Banner tone="accent" icon="star" text={LEARNING_BANNER} /> : null}
+      {LOWER_SESSIONS.includes(active.sessionKey) || active.sessionKey === 'MINIMUM' ? <Banner tone="info" icon="alert" text={`Knee: pain-free range only, use the safety bars. ${KNEE_SAFETY}`} /> : null}
+      {active.sessionKey === 'BENCH' ? <Banner tone="info" icon="alert" text="Shoulder: use safeties or a spotter, stop if the right shoulder pinches or feels loose." /> : null}
+      {!data.checklist.doctor_bp?.done ? <Banner tone="warning" text="BP not yet checked: breathe out on the effort, no breath-holding, no grinding reps. Heavy lifts count." /> : null}
       {hidden.length ? (
         <Banner tone="warning" text={`Paused until a doctor or physio clears you: ${hidden.map((h) => h.name).join(', ')}.`} action="Unpause in Settings" onPress={() => router.push('/settings')} />
       ) : null}

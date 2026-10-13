@@ -27,7 +27,7 @@ export const COACH_SCRIPTS: CoachScript[] = [
       'Every exercise has a "Not available / busy?" button with two safe alternatives.',
       'Pick one and choose "Just today". It keeps its own progression history.',
       'Or do the next exercise first and come back. Order matters less than finishing.',
-      'Never swap into dips, behind-the-neck moves, upright rows, wide flyes or heavy overhead pressing.',
+      'Never swap into dips, behind-the-neck moves, upright rows or wide flyes.',
     ],
     actions: [{ label: 'Open today’s workout', action: 'equipment' }],
   },
@@ -36,7 +36,7 @@ export const COACH_SCRIPTS: CoachScript[] = [
     chip: "I'm exhausted",
     title: 'Low energy plan',
     lines: [
-      'Do the 30-minute minimum version: leg press 2x10, chest press 2x10, seated row 2x10, plank 2x30 s. It still counts.',
+      'Do the 30-minute minimum version: leg press 2x10, lat pulldown 2x10, plank 2x30 s. It still counts.',
       'Too tired even for that? Walk 20-30 minutes. That is 40% credit and keeps the habit alive.',
       'Food: just hit the three anchors today: a protein breakfast, the planned lunch, and dinner with 1.5 palms of protein.',
       'Tonight: lights off by 23:30. Tiredness is often a sleep problem, not a willpower problem.',

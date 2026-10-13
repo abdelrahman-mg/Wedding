@@ -15,18 +15,19 @@ export function isDeload(week: number, date: ISODate, deloadUntil: ISODate | nul
   return isScheduledDeload(week) || isTriggeredDeload(date, deloadUntil);
 }
 
-/** Working sets for an exercise given the program week and deload state. */
-export function workingSets(sets: number, week: number, deload: boolean): number {
-  if (deload) return Math.ceil(sets / 2);
-  if (week <= 2) return Math.min(sets, 2);
-  return sets;
+/** The first weeks are a learning phase: light weights, focus on form. */
+export const LEARNING_WEEKS = 3;
+
+export function isLearningPhase(week: number): boolean {
+  return week >= 1 && week <= LEARNING_WEEKS;
 }
 
-export function targetRir(baseRir: string, week: number, deload: boolean): string {
-  if (baseRir === '-') return '-';
-  if (deload) return '4';
-  if (week <= 2) return '3-4';
-  return baseRir;
+export const LEARNING_BANNER = 'Learning phase - light weights, focus on form. Add weight slowly; clean reps beat heavy reps.';
+
+/** Working sets for an exercise given the deload state. Learning weeks keep the full prescription. */
+export function workingSets(sets: number, _week: number, deload: boolean): number {
+  if (deload) return Math.ceil(sets / 2);
+  return sets;
 }
 
 /** Round to the nearest 2.5 kg plate step. */
@@ -40,6 +41,6 @@ export function deloadLoad(lastWorking: number): number {
 
 export function liftingModeLabel(week: number, deload: boolean): string {
   if (deload) return 'Deload week: lighter on purpose';
-  if (week <= 2) return 'Ease-in: 2 sets per exercise, RIR 3-4';
+  if (isLearningPhase(week)) return 'Learning phase: light weights, form first';
   return 'Full sets';
 }

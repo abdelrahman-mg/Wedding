@@ -12,8 +12,8 @@ export interface WeekTarget {
 }
 
 export const PHASES: Record<PhaseId, { name: string; weeks: string; note: string }> = {
-  1: { name: 'Foundation', weeks: '1-2', note: '2 sets per exercise, RIR 3-4. Learn the moves.' },
-  2: { name: 'Build', weeks: '3-6', note: 'Full sets. Week 6 is a deload.' },
+  1: { name: 'Foundation', weeks: '1-2', note: 'Learning phase: light weights, focus on form.' },
+  2: { name: 'Build', weeks: '3-6', note: 'Week 3 is still learning. Then add weight each session. Week 6 is a deload.' },
   3: { name: 'Push', weeks: '7-10', note: 'Full sets, push the progression.' },
   4: { name: 'Finish', weeks: '11-12', note: 'Week 12 deload plus the strength test.' },
 };
@@ -21,7 +21,7 @@ export const PHASES: Record<PhaseId, { name: string; weeks: string; note: string
 export const WEEK_TARGETS: WeekTarget[] = [
   { week: 1, phase: 1, steps: 6000, cardio: 20, lifting: 'easeIn' },
   { week: 2, phase: 1, steps: 7500, cardio: 20, lifting: 'easeIn' },
-  { week: 3, phase: 2, steps: 8000, cardio: 25, lifting: 'full' },
+  { week: 3, phase: 2, steps: 8000, cardio: 25, lifting: 'easeIn' },
   { week: 4, phase: 2, steps: 8500, cardio: 30, lifting: 'full' },
   { week: 5, phase: 2, steps: 9000, cardio: 35, lifting: 'full' },
   { week: 6, phase: 2, steps: 10000, cardio: 25, lifting: 'deload' },

@@ -1,25 +1,20 @@
 import { expectedWeight, stepTarget, cardioTarget, weightBand } from '../src/engine/targets';
 
-describe('expected weight band (3.3)', () => {
-  test.each(Array.from({ length: 12 }, (_, i) => i + 1))('t=%i follows the formula', (t) => {
-    const e = 110 - (2.0 + 0.9 * (t - 1));
-    expect(expectedWeight(t, 110)).toBeCloseTo(e, 5);
+describe('target weight path (0.3-0.7 kg a week)', () => {
+  test.each(Array.from({ length: 12 }, (_, i) => i + 1))('t=%i', (t) => {
+    expect(expectedWeight(t, 110)).toBeCloseTo(110 - 0.5 * t, 5);
     const b = weightBand(t, 110);
-    expect(b.low).toBeCloseTo(e - 1.5, 5);
-    expect(b.high).toBeCloseTo(e + 1.5, 5);
+    expect(b.low).toBeCloseTo(110 - 0.7 * t, 5);
+    expect(b.high).toBeCloseTo(110 - 0.3 * t, 5);
   });
 
-  test('brief examples', () => {
-    expect(expectedWeight(2, 110)).toBeCloseTo(107.1);
-    expect(expectedWeight(4, 110)).toBeCloseTo(105.3);
-    expect(expectedWeight(6, 110)).toBeCloseTo(103.5);
-    expect(expectedWeight(8, 110)).toBeCloseTo(101.7);
-    expect(expectedWeight(10, 110)).toBeCloseTo(99.9);
-    expect(expectedWeight(12, 110)).toBeCloseTo(98.1);
+  test('examples', () => {
+    expect(expectedWeight(4, 110)).toBeCloseTo(108);
+    expect(expectedWeight(12, 110)).toBeCloseTo(104);
   });
 
   test('uses the editable start weight', () => {
-    expect(expectedWeight(1, 104)).toBeCloseTo(102);
+    expect(expectedWeight(2, 104)).toBeCloseTo(103);
   });
 });
 

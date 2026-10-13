@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { getFood } from '../data/foods';
 import type { Slot } from '../data/meals';
 import type { DayOfWeek } from '../data/plan';
 import type { SessionKey } from '../data/sessions';
@@ -109,6 +110,9 @@ interface Store {
   removeEntry: (id: string) => void;
   addExtra: (date: ISODate, food: Omit<ExtraFood, 'id' | 'time'>) => string;
   removeExtra: (date: ISODate, id: string) => void;
+  /** Add or remove portions of a food from src/data/foods. Counts merge into one row per food. */
+  addPortion: (date: ISODate, foodId: string, delta: number) => void;
+  setBusy: (date: ISODate, busy: boolean) => void;
 }
 
 const SET_FIELD: Partial<Record<EntryKind, 'steps' | 'sleep' | 'energy' | 'hunger'>> = { steps: 'steps', sleep: 'sleep', energy: 'energy', hunger: 'hunger' };
@@ -303,6 +307,31 @@ export const useApp = create<Store>()(
           });
           return id;
         },
+        addPortion: (date, foodId, delta) =>
+          mut((d) => {
+            const food = getFood(foodId);
+            if (!food) return d;
+            const cur = day(d, date);
+            const extras = cur.extras ?? [];
+            const old = extras.find((x) => x.foodId === foodId);
+            const qty = (old?.qty ?? 0) + delta;
+            let next: ExtraFood[];
+            if (qty <= 0) next = extras.filter((x) => x.foodId !== foodId);
+            else {
+              const item: ExtraFood = {
+                id: old?.id ?? uid(),
+                name: `${qty} × ${food.name} (${food.portion})`,
+                kcal: food.kcal * qty,
+                protein: food.protein * qty,
+                time: old?.time ?? Date.now(),
+                foodId,
+                qty,
+              };
+              next = old ? extras.map((x) => (x.foodId === foodId ? item : x)) : [...extras, item];
+            }
+            return { ...d, dayLogs: { ...d.dayLogs, [date]: { ...cur, extras: next } } };
+          }),
+        setBusy: (date, busy) => get().updateDay(date, { busy }),
         removeExtra: (date, id) =>
           mut((d) => {
             const cur = day(d, date);

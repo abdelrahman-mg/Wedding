@@ -1,9 +1,10 @@
 // Every workout and exercise in the plan, with targets for this week and the last logged numbers.
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { DAY_NAMES, DAYS } from '../data/plan';
 import { altDisplayName, SESSIONS, type ExerciseDef, type SessionKey } from '../data/sessions';
-import { targetRir, workingSets } from '../engine/phase';
+import { tutorialUrl } from '../data/tutorials';
+import { workingSets } from '../engine/phase';
 import { historyFor, suggestProgression } from '../engine/progression';
 import { useApp } from '../store/useApp';
 import { Icon } from '../ui/Icon';
@@ -27,7 +28,7 @@ function ExerciseItem({ def, week, deload }: { def: ExerciseDef; week: number; d
             <T v="bodyStrong">{name}</T>
             <T v="caption" muted>
               {sets} x {range}
-              {def.perSide ? ' per side' : ''} · rest {def.rest}s · RIR {targetRir(def.rir, week, deload)} · {def.muscles}
+              {def.perSide ? ' per side' : ''} · rest {def.rest}s · {def.muscles}
             </T>
           </View>
           <Icon name={open ? 'up' : 'down'} color={c.textMuted} size={18} />
@@ -36,7 +37,8 @@ function ExerciseItem({ def, week, deload }: { def: ExerciseDef; week: number; d
       {open && sug ? (
         <View style={{ paddingBottom: space.md, gap: 6 }}>
           <T>{def.cue}</T>
-          {sug.lastSummary ? <T v="caption" muted>Last time: {sug.lastSummary}</T> : null}
+          {sug.lastSummary ? <T v="caption" muted>Last session: {sug.lastSummary}</T> : null}
+          <Button label="Watch tutorial" icon="play" small variant="secondary" onPress={() => Linking.openURL(tutorialUrl(def, name)).catch(() => {})} accessibilityLabel={`Watch tutorial: ${name}`} />
           <View style={{ backgroundColor: c.surfaceAlt, borderRadius: radius.sm, padding: space.sm }}>
             <T v="label" color={c.primary}>Next: {sug.message}</T>
           </View>
@@ -52,7 +54,7 @@ export function SessionLibrary({ week, deload, todaySession, onStart }: { week: 
   const { c } = useTheme();
   const sessionDays = useApp((s) => s.data.plan.sessionDays);
   const [open, setOpen] = useState<SessionKey | null>(null);
-  const keys: SessionKey[] = ['UPPER_A', 'LOWER_A', 'UPPER_B', 'LOWER_B', 'MINIMUM'];
+  const keys: SessionKey[] = ['SQUAT', 'BENCH', 'DEADLIFT', 'MINIMUM'];
   return (
     <>
       {keys.map((k) => {

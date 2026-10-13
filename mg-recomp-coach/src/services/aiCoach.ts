@@ -65,8 +65,8 @@ export function buildSummary(data: AppData, today: ISODate) {
       startWaist: data.profile.startWaist,
       constraints: [
         'True gym beginner, desk job',
-        'Right shoulder dislocated 4 times: no behind-the-neck, dips, wide/deep flyes, upright rows, heavy overhead pressing',
-        'Right knee partial ACL tear, surgery 8 years ago: no jumping, running, pivoting lunges, heavy end-range leg extensions',
+        'Right shoulder dislocated 4 times: no behind-the-neck, dips, wide/deep flyes, upright rows. Bench press and overhead press are in his program by his own choice: keep them controlled, pain-free, with safeties',
+        'Right knee partial ACL tear, surgery 8 years ago: no jumping, running, pivoting lunges, heavy end-range leg extensions. Squat and deadlift are in his program by his own choice',
         'Possible high blood pressure (not yet checked), possible insulin resistance, heavy snoring',
         'Egyptian food, dislikes fish, no food scale (cups, spoons, palms only)',
         'Hard limits: >= 1,700 kcal/day average, <= 12,000 steps, <= 45 min cardio, no HIIT/running/jumping, no supplements like fat burners',

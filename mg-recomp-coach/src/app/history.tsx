@@ -34,7 +34,7 @@ export default function History() {
                 <T v="bodyStrong">{name}: </T>
                 {sets
                   .sort((a, b) => a.setIndex - b.setIndex)
-                  .map((s) => `${s.weight ? `${s.weight}x` : ''}${s.reps ?? '-'}${s.rir != null ? ` @${s.rir === 4 ? '4+' : s.rir}` : ''}`)
+                  .map((s) => `${s.weight ? `${s.weight}x` : ''}${s.reps ?? '-'}${s.clean === false ? ' (form off)' : ''}`)
                   .join(', ')}
               </T>
             ))}

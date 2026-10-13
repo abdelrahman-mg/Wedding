@@ -12,6 +12,7 @@ import { Icon } from '../ui/Icon';
 import { Banner, Button, Card, Field, IconButton, num, Row, Sheet, T, ToggleRow } from '../ui/kit';
 import { space, useTheme } from '../ui/theme';
 import { PlanBSheet } from './PlanBSheet';
+import { PortionSheet, PortionSummary } from './Portions';
 
 function MealRow({
   s,
@@ -157,6 +158,7 @@ export function MealsCard({ date, isToday }: { date: ISODate; isToday: boolean }
   const [planB, setPlanB] = useState<{ slot: Slot; mealId: string } | null>(null);
   const [skipMsg, setSkipMsg] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [portions, setPortions] = useState(false);
   const plannedKcal = plannedTotals(data.plan, ctx.dow, ctx.isGym).kcal;
   const nextSlot = ctx.slots.find((s) => !log?.meals[s.slot]);
   const expanded = open ?? (isToday ? nextSlot?.slot ?? null : null);
@@ -233,9 +235,13 @@ export function MealsCard({ date, isToday }: { date: ISODate; isToday: boolean }
           </Row>
         ))}
         <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingVertical: space.sm }}>
-          <Button label="Add food you ate" icon="plus" small variant="ghost" onPress={() => setAdding(true)} />
+          <Row>
+            <Button label="Add by portion" icon="food" small variant="secondary" onPress={() => setPortions(true)} flex />
+            <Button label="Type it" icon="plus" small variant="ghost" onPress={() => setAdding(true)} flex />
+          </Row>
         </View>
       </Card>
+      <PortionSummary date={date} />
       <T v="caption" muted>Tap a meal for details, Plan B or skip. Tap the circle when you’ve eaten it.</T>
 
       {planB ? (
@@ -251,6 +257,7 @@ export function MealsCard({ date, isToday }: { date: ISODate; isToday: boolean }
         />
       ) : null}
       <AddFoodSheet visible={adding} onClose={() => setAdding(false)} date={date} />
+      <PortionSheet visible={portions} onClose={() => setPortions(false)} date={date} />
     </>
   );
 }

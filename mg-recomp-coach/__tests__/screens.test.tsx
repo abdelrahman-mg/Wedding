@@ -1,5 +1,6 @@
 // Render smoke test: every screen renders with demo data (catches runtime errors without a device).
 import { fireEvent, renderRouter, screen } from 'expo-router/testing-library';
+import { Linking } from 'react-native';
 import Today from '../src/app/(tabs)/index';
 import Gym from '../src/app/(tabs)/gym';
 import Me from '../src/app/(tabs)/me';
@@ -19,7 +20,7 @@ import Badges from '../src/app/badges';
 import Photos from '../src/app/photos';
 import History from '../src/app/history';
 import StrengthTest from '../src/app/strength-test';
-import { todayISO } from '../src/engine/dates';
+import { addDays, todayISO } from '../src/engine/dates';
 import { defaultData } from '../src/engine/defaults';
 import { buildDemoData } from '../src/services/demo';
 import { useApp } from '../src/store/useApp';
@@ -69,7 +70,7 @@ const expectations: Record<string, RegExp> = {
   '/health': /Blood pressure/,
   '/badges': /Badges/,
   '/photos': /Compare/,
-  '/history': /Lower|Upper/,
+  '/history': /Squat|Bench|Deadlift/,
   '/strength-test': /Baseline test/,
 };
 
@@ -96,9 +97,9 @@ describe('workout flow', () => {
   test('starting a workout renders the live session with progression', async () => {
     const d = buildDemoData(todayISO());
     useApp.setState({ data: d, hydrated: true, active: null });
-    useApp.getState().startWorkout(todayISO(), 'UPPER_A', 'full', false);
+    useApp.getState().startWorkout(todayISO(), 'BENCH', 'full', false);
     await renderRouter(routes, { initialUrl: '/gym' });
-    expect((await screen.findAllByText(/Machine chest press/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Bench press/)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Not available \/ busy\?/).length).toBeGreaterThan(0);
     expect(screen.getByText('Finish workout')).toBeTruthy();
   });
@@ -112,7 +113,7 @@ describe('interactions', () => {
     await renderRouter(routes, { initialUrl: '/gym' });
     await fireEvent.press(screen.getAllByLabelText('Set 1 done')[0]);
     expect(useApp.getState().active?.sets.filter((s) => s.done)).toHaveLength(1);
-    expect(useApp.getState().restTimer?.total).toBe(120); // leg press rest
+    expect(useApp.getState().restTimer?.total).toBe(90); // leg press rest
     await fireEvent.press(screen.getByText('Finish workout'));
     await fireEvent.press(await screen.findByText('Save workout'));
     const w = useApp.getState().data.workouts;
@@ -140,7 +141,7 @@ describe('interactions', () => {
   test('joint-safety check blocks a custom swap', async () => {
     const d = { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } };
     useApp.setState({ data: d, hydrated: true, active: null });
-    useApp.getState().startWorkout(todayISO(), 'UPPER_A', 'full', false);
+    useApp.getState().startWorkout(todayISO(), 'BENCH', 'full', false);
     await renderRouter(routes, { initialUrl: '/gym' });
     await fireEvent.press(screen.getAllByText('Not available / busy?')[0]);
     await fireEvent.changeText(await screen.findByLabelText('Type my own'), 'Bench dips');
@@ -173,7 +174,7 @@ describe('log tab and AI setup', () => {
   test('extra food counts toward the day on Today', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
     await renderRouter(routes, { initialUrl: '/' });
-    await fireEvent.press(screen.getByText('Add food you ate'));
+    await fireEvent.press(screen.getByText('Type it'));
     await fireEvent.press(await screen.findByText('Banana · 105'));
     const log = useApp.getState().data.dayLogs[todayISO()];
     expect(log?.extras?.[0]).toMatchObject({ name: 'Banana', kcal: 105 });
@@ -183,9 +184,9 @@ describe('log tab and AI setup', () => {
   test('the Gym tab lists every workout and its exercises', async () => {
     useApp.setState({ data: fresh(), hydrated: true, active: null });
     await renderRouter(routes, { initialUrl: '/gym' });
-    await fireEvent.press(screen.getByLabelText('Lower B. Show exercises'));
-    expect(screen.getByText('Goblet box squat (to bench height)')).toBeTruthy();
-    expect(screen.getByText('Start Lower B now')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Deadlift day. Show exercises'));
+    expect(screen.getByText('Light squat')).toBeTruthy();
+    expect(screen.getByText('Start Deadlift day now')).toBeTruthy();
   });
 
   test('Me > Coach shows the AI key setup under Ask a question', async () => {
@@ -198,6 +199,127 @@ describe('log tab and AI setup', () => {
     await fireEvent.changeText(screen.getByLabelText('API key'), 'not-a-real-key-123456789');
     await fireEvent.press(screen.getByText('Save and test'));
     expect(screen.getByText(/Keys start with sk-ant-/)).toBeTruthy();
+  });
+});
+
+describe('training program, logging and progression', () => {
+  const fresh = () => ({ ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } });
+
+  test('the live workout shows the learning banner, a tutorial button and big stepper inputs', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    useApp.getState().startWorkout(todayISO(), 'SQUAT', 'full', false);
+    await renderRouter(routes, { initialUrl: '/gym' });
+    expect((await screen.findAllByText(/Learning phase - light weights, focus on form/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Watch tutorial').length).toBe(4);
+    await fireEvent.press(screen.getAllByLabelText('Increase Set 1 weight in kilograms')[0]);
+    await fireEvent.press(screen.getAllByLabelText('Increase Set 1 weight in kilograms')[0]);
+    await fireEvent.press(screen.getAllByLabelText('Set 1 done')[0]);
+    const set = useApp.getState().active?.sets[0];
+    expect(set).toMatchObject({ exerciseId: 'squat', weight: 5, reps: 5, done: true, clean: true });
+  });
+
+  test('Watch tutorial opens the exercise link', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    useApp.getState().startWorkout(todayISO(), 'BENCH', 'full', false);
+    await renderRouter(routes, { initialUrl: '/gym' });
+    await fireEvent.press(screen.getAllByLabelText('Watch tutorial: Bench press')[0]);
+    expect(open).toHaveBeenCalledWith(expect.stringContaining('youtube.com'));
+    expect(open.mock.calls[0][0]).toMatch(/Bench%20press/);
+    open.mockRestore();
+  });
+
+  test('last session numbers show next to each set and drive the next suggestion', async () => {
+    const d = fresh();
+    d.workouts = [
+      {
+        id: 'w1', date: '2026-01-02', sessionKey: 'BENCH', kind: 'full', startedAt: 1, durationMin: 60, deload: false, finished: true,
+        sets: [0, 1, 2, 3].map((i) => ({ exerciseId: 'bench', nameUsed: 'Bench press', setIndex: i, weight: 60, reps: 5, rir: null, clean: true, done: true })),
+      },
+    ];
+    useApp.setState({ data: d, hydrated: true, active: null });
+    useApp.getState().startWorkout(todayISO(), 'BENCH', 'full', false);
+    await renderRouter(routes, { initialUrl: '/gym' });
+    expect(screen.getAllByText(/Last time: 60 kg × 5/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Add 2.5 kg: 62.5 kg x 5/)).toBeTruthy();
+  });
+
+  test('marking form as not clean saves it on the sets', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    useApp.getState().startWorkout(todayISO(), 'BENCH', 'full', false);
+    await renderRouter(routes, { initialUrl: '/gym' });
+    await fireEvent.press(screen.getAllByLabelText('Set 1 done')[0]);
+    await fireEvent.press(screen.getAllByLabelText('Form was clean on every set')[0]);
+    expect(useApp.getState().active?.sets[0].clean).toBe(false);
+  });
+});
+
+describe('food by portion, protein tracker and busy day', () => {
+  const fresh = () => ({ ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } });
+
+  test('protein quick buttons add portions that count toward protein', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/' });
+    await fireEvent.press(screen.getByLabelText(/^Add 1 palm of Grilled chicken breast/));
+    await fireEvent.press(screen.getByLabelText(/^Add 1 palm of Grilled chicken breast/));
+    const log = useApp.getState().data.dayLogs[todayISO()];
+    expect(log?.extras).toHaveLength(1);
+    expect(log?.extras?.[0]).toMatchObject({ foodId: 'chicken_palm', qty: 2, protein: 62, kcal: 330 });
+  });
+
+  test('Add by portion lists foods with hands, spoons and pieces', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/' });
+    await fireEvent.press(screen.getByText('Add by portion'));
+    expect(await screen.findByText(/1 palm = the size and thickness of your palm/)).toBeTruthy();
+    await fireEvent.press(screen.getByText(/^Carbs/));
+    expect(screen.getByText('Foul medames')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Add one portion of Rice'));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.extras?.[0]).toMatchObject({ foodId: 'rice', qty: 1, kcal: 160 });
+    await fireEvent.press(screen.getByLabelText('Remove one portion of Rice'));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.extras).toHaveLength(0);
+  });
+
+  test('busy day mode shows three simple meals and the protein target only', async () => {
+    useApp.setState({ data: fresh(), hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/' });
+    await fireEvent.press(screen.getByText('Busy day? Minimum-effort mode'));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.busy).toBe(true);
+    expect(await screen.findByText(/Busy day mode: three simple meals/)).toBeTruthy();
+    expect(screen.getByText('Eggs, foul and bread')).toBeTruthy();
+    expect(screen.getByText('Chicken, rice, salad')).toBeTruthy();
+    expect(screen.getByText('Tawook plate')).toBeTruthy();
+    expect(screen.queryByText('Your numbers')).toBeNull();
+    expect(screen.queryByText('Work snack')).toBeNull();
+    await fireEvent.press(screen.getByLabelText(/^Lunch: Chicken, rice, salad/));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.meals.L?.status).toBe('eaten');
+    expect(screen.getByText('Protein today')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Back to the full plan'));
+    expect(useApp.getState().data.dayLogs[todayISO()]?.busy).toBe(false);
+  });
+});
+
+describe('weekly check-in', () => {
+  test('Progress shows the weekly average, the target and a calorie suggestion', async () => {
+    const d = { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: addDays(todayISO(), -28), startWeight: 110 } };
+    // Week avgs: start of program -> losing 1 kg a week (too fast).
+    for (let i = 1; i <= 28; i++) {
+      const date = addDays(todayISO(), -i);
+      d.body[date] = { weight: 110 - (28 - i) * (1 / 7) };
+    }
+    useApp.setState({ data: d, hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/me' });
+    expect(await screen.findByText('WEEKLY CHECK-IN')).toBeTruthy();
+    expect(screen.getByText(/lose 0.3–0.7 kg per week/)).toBeTruthy();
+    expect(screen.getByText('Lifts over time')).toBeTruthy();
+  });
+
+  test('quick weight stepper saves today’s smart scale weight', async () => {
+    useApp.setState({ data: { ...defaultData(), profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } }, hydrated: true, active: null });
+    await renderRouter(routes, { initialUrl: '/me' });
+    await fireEvent.press(screen.getByLabelText('Increase Smart scale today'));
+    await fireEvent.press(screen.getByText('Save today’s weight'));
+    expect(useApp.getState().data.body[todayISO()]?.weight).toBe(110.1);
   });
 });
 

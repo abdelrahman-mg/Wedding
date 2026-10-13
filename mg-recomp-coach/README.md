@@ -10,7 +10,7 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
-**Ready-made APK:** download [`release/MG-Recomp-Coach-1.4.0.apk`](release/MG-Recomp-Coach-1.4.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.5.0.apk`](release/MG-Recomp-Coach-1.5.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
 
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 
@@ -104,7 +104,7 @@ The sections below describe each feature in detail.
 - **Today.**
   - Header with greeting, date arrows to log past days, week, phase, day type and streak.
   - Targets card: kcal, protein, steps and water in 250 ml glasses.
-  - Weekly goal rings: workouts (4), days on plan (7), average steps vs target, and weigh-ins.
+  - Weekly goal rings: workouts (3), days on plan (7), average steps vs target, and weigh-ins.
   - Meal slots with **Ate it**, **Plan B** and **Skip**. Plan B is a bottom sheet with same-slot alternatives sorted by closeness, the emergency meals, the ingredient table and "Log something else", all with a live kcal and protein comparison and the effect on the day total.
   - Meals are compact rows: tap the circle when eaten, tap the row for details, Plan B or Skip. The next meal opens by default.
   - All notices (demo mode, BP, deload, holiday) sit together in one alert card.
@@ -115,25 +115,40 @@ The sections below describe each feature in detail.
   - Morning check-in before 11:00 and the end-of-day check-in.
 - **Train.**
   - Today's session with the phase banner, estimated duration and progress bar.
-  - Exercise cards with cue, last session, progression suggestion and set rows (kg, reps or seconds, RIR 0 to 4+, done). Ticking a set saves it, buzzes lightly and starts the rest timer. The floating rest pill survives navigation and buzzes at zero.
+  - Exercise cards with cue, a **Watch tutorial** button, last session, progression suggestion and set rows (big minus/plus steppers for kg and reps, "Last time: 60 kg × 5" under every set, done). One tap marks the form as clean or not for the whole exercise. Ticking a set saves it, buzzes lightly and starts the rest timer. The floating rest pill survives navigation and buzzes at zero.
   - "Not available / busy?" swaps (Just today or From now on), checked against the joint-safety rules.
-  - Minimum version (30 min, 70% credit), the walk fallback (40% credit) and a session switcher that blocks back-to-back lower sessions.
+  - Minimum version (30 min, 70% credit), the walk fallback (40% credit) and a session switcher that blocks squat day and deadlift day on back-to-back days.
   - The optional 20-minute walk after lifting (+2 bonus points), warm-up and mobility checklists, the cardio timer on rest days, the baseline test in week 1 and the final test in week 12, and workout history.
 - **Progress.**
-  - Weight chart with daily dots, a 7-day average, the shaded expected band and a start-weight line. Tap the chart to read a value.
-  - Charts for waist, estimated strength per main lift (Epley), weekly steps, days on plan and sleep.
+  - **Weekly check-in** card at the top: last week's average vs the week before, the 0.3-0.7 kg/week target, and a calorie suggestion. A big stepper saves today's smart-scale weight without typing.
+  - Weight chart with daily dots, a 7-day average, the shaded target path (0.3-0.7 kg a week) and a start-weight line. Tap the chart to read a value.
+  - **Lifts over time**: one chart per main lift (squat, bench, deadlift, overhead press, barbell row) with the heaviest set of each session. Also waist, weekly steps, days on plan and sleep charts.
   - Stats cards, a weekly summary table, badges, progress photos (weeks 1, 4, 8 and 12, stored privately, side-by-side compare), the plan-change timeline with undo, and the pain log.
   - **Copy weekly report** in the exact text format from the brief.
 - **Coach.**
-  - The weekly review ("What the data says", with rate, distance from the band and the week-12 projection).
+  - The weekly review ("What the data says", with the weekly change, the 0.3-0.7 kg target and the week-12 projection).
   - Proposal cards with **Apply** and **Not now**, the early-deload trigger, pain referral, BP status, labs and snoring cards.
   - "Ask the coach" with offline scripted answers for the six quick chips, plus the optional AI coach.
 - **Plan.**
   - The 12-week roadmap with the current week highlighted, and holiday/social week mode.
-  - Editors for meals (including moving the treat day) and workouts (session days, permanent swaps, the leg-extension opt-in after week 6), and the Targets screen (all edits validated against the hard limits).
+  - Editors for meals (including moving the treat day) and workouts (session days and permanent swaps), and the Targets screen (all edits validated against the hard limits).
   - Shopping list, meal prep, guides (ingredient Plan B, eating out, supplements with creatine locked until kidney labs are normal), health checks and the BP log, reminders, settings, and safety.
 
 Design: six color schemes (Nile teal, Ocean blue, Graphite, Sunset, Plum, Forest), each with a light and a dark version. Pick one in Me > Plan > Colors and theme; it applies instantly. The default is Nile teal and emerald with an amber accent for streaks and achievements. The colors of "done", warnings and dangers stay the same in every scheme. The background is off-white in light mode and teal-black in dark mode. Space Grotesk is used for headings and Inter for body text. The app follows the system theme, with a manual override, and there is a "reduce motion" switch that also follows the system setting. Tap targets are at least 48 dp, and status is never shown by color alone.
+
+---
+
+## 3b. Version 1.5.0: powerlifting program, portions and weekly check-in
+
+- **Program (replaces the old 4-day split).** Powerlifting-focused full body, 3 days: **Friday squat day** (squat 4x5, Romanian deadlift 3x8, leg press 2x10, plank 3 sets), **Saturday bench day** (bench press 4x5, overhead press 3x6-8, barbell row 3x8, biceps curl and triceps pushdown 2x10-12), **Tuesday deadlift day** (deadlift 3x5, light squat 2x5, light bench 3x5, lat pulldown 3x8-10). Rest days keep the easy cardio. Moving days in Me > Plan > Workouts still works.
+- **Watch tutorial.** Every exercise card and every exercise in the Gym library has a button. Add your own links in `src/data/tutorials.ts`; an exercise without a link opens a YouTube search for it, so the button always works.
+- **Logging.** Weight (kg) and reps for every set with big minus/plus buttons (no typing needed, but you can type), and the last session's numbers next to every set. RIR is gone. One tap says whether form was clean.
+- **Auto progression.** See section 6, point 6. The first 3 weeks show the learning banner. Two misses in a row suggest a 10% deload.
+- **Weekly check-in.** Me > Progress opens on it: weekly average vs the previous week, the 0.3-0.7 kg/week target, calorie suggestions (faster loss: eat a little more; flat for 2 weeks: trim a little), the weight trend chart and a chart per main lift.
+- **Food by portion, no scale.** Today has a protein tracker with big one-tap buttons (palm of chicken, protein shake, egg, yogurt), and **Add by portion** opens Egyptian foods grouped as palms of protein, fists of carbs, cupped hands of veg and thumbs of fats, with spoon, cup and piece counts. No fish. The protein shake comes in water or milk versions. Portions you add count toward calories and protein.
+- **Busy day mode.** One big button on Today swaps the screen for three simple meals (eggs, foul and bread; chicken, rice, salad; tawook plate) plus the protein target. Nothing else.
+- **Existing data.** Old workouts are kept and mapped (upper sessions to bench day, lower sessions to squat day). Session days and permanent swaps reset to the new program. Everything else stays.
+- **Joint safety, honestly.** You chose squat, deadlift, bench and overhead press even though your right shoulder has dislocated 4 times and your right knee had ACL surgery. They are now allowed in the app. What stays: no behind-the-neck moves, dips, deep flyes, upright rows, lunges, jumping, running; the pain-flag referral (2 flags in 14 days) and the option to pause shoulder or knee exercises; the BP banner, which now says heavy lifts count; and reminders on the exercise cards to use safety bars or a spotter. This is not medical advice: get the BP and labs checked before the weights get heavy, and ask a physio about the shoulder.
 
 ---
 
@@ -146,7 +161,7 @@ Design: six color schemes (Nile teal, Ocean blue, Graphite, Sunset, Plum, Forest
 | Program week vs stats week | The program week is `floor(daysSinceStart / 7) + 1`, as specified. Weekly statistics use Sunday to Saturday weeks. A stats week takes the program week of its Saturday, so a partial first week counts as week 1. |
 | Triggered deload | A triggered deload lasts 7 days, `deloadUntil` is its last day, and +150 kcal applies only during those days (`adjust.deloadKcal`). |
 | "Strength drops on 3+ exercises" | This reads as: 3 or more exercises whose last two sessions each dropped versus the session before (lower top weight, or the same top weight with fewer total reps). |
-| Below-the-range rule | One session below the range: hold the weight. Two in a row: reduce about 7.5% (inside the 5-10% band), rounded to 0.5 kg. |
+| Missed-reps rule | One session where not every prescribed rep was hit with clean form: repeat the weight. Two in a row: suggest a 10% deload, rounded to 2.5 kg, and build back up. |
 | Stall rule | Uses estimated strength (Epley) for loaded lifts and total reps or seconds otherwise. A stall is 3 sessions in a row that do not beat the best before them. If there has been no new best for 42 days or more, the app also suggests swapping. Deload sessions are ignored. |
 | Kcal cuts | A proposal must pass both rules: the plan average plus the adjustment stays at 1,700 or more, and the adjustment stays at -250 or above. With the default plan (about 1,955 kcal), that allows one -150 cut. After that the coach says the hard limits are reached and recommends a doctor and lab review. |
 | Doctor clearance | You need to tick "Doctor reviewed my labs and BP" in Health checks and then confirm in Settings. Clearance relaxes the limits a little (1,500 kcal floor, 15,000 steps, 60 min cardio). The no-HIIT, no-running, no-jumping and no-supplement rules never relax. |
@@ -174,9 +189,9 @@ mg-recomp-coach/
   src/data/                     source-of-truth plan data (meals, plan, sessions, phases, guides, messages, badges, coach scripts)
   src/engine/                   pure, tested logic
     dates.ts                    timezone-safe YYYY-MM-DD helpers, Sunday-Saturday weeks
-    targets.ts                  expected weight and band, step and cardio targets
+    targets.ts                  target weight path (0.3-0.7 kg a week), step and cardio targets
     nutrition.ts                planned slots, totals, eaten totals, kcal target, protein fix
-    phase.ts                    ease-in and deload sets, RIR, deload loads
+    phase.ts                    learning phase (weeks 1-3), deload sets and loads
     progression.ts              double progression, stall, PRs, history by exercise name
     scoring.ts                  day score, streak with grace day, levels
     limits.ts                   hard limits, joint-safety keyword rules, forbidden advice filter
@@ -198,7 +213,7 @@ mg-recomp-coach/
 
 - `profile`, `settings`, `plan` (meals per weekday, session days, treat day, permanent exercise swaps) and `adjust` (stepsAdjust, kcalAdjust, cardioAdjust, proteinTarget, deloadUntil, deloadKcal, optional base kcal).
 - `dayLogs[date]`: meals per slot with a status of eaten, planB, custom or skipped; steps, water, sleep, energy, hunger, oil, note, cardio minutes, session override, cravings and check-in flags.
-- `body[date]` (weight and waist), `bp[]`, `workouts[]` (sets with `exerciseId`, `nameUsed`, weight, reps or seconds, RIR, done), `painFlags[]`, `redFlags[]`.
+- `body[date]` (weight and waist), `bp[]`, `workouts[]` (sets with `exerciseId`, `nameUsed`, weight, reps or seconds, clean form, done), `painFlags[]`, `redFlags[]`.
 - `planChanges[]` (date, type, old, new, reason, undone), `dismissed` proposals, `badges`, `photos[]`, `checklist`, `strengthTests` (baseline and final), `messageHistory`, `shoppingChecked`, `celebrations`, `planBCount` and `coachChat`.
 
 To change the schema, bump `SCHEMA_VERSION` in `src/engine/defaults.ts` and add a migration from the old version to the new one. Never edit an old migration. Settings > "Export database (debug)" exports the raw stored JSON.
@@ -209,23 +224,23 @@ To change the schema, bump `SCHEMA_VERSION` in `src/engine/defaults.ts` and add 
 
 All of it is pure functions in `src/engine/`. Screens call `runReview(data, today)`, `earlyDeload(data, today)`, `painStatus(...)` and `bpStatus(...)`.
 
-1. **Expected band.** `expected(t) = W0 - (2.0 + 0.9 * (t - 1))`, with a band of ±1.5 kg, for t = 1 to 12.
+1. **Target loss.** 0.3 to 0.7 kg per week, judged on the weekly average. The shaded path on the chart is `W0 - 0.3 t` to `W0 - 0.7 t`.
 2. **Weekly stats.** For each completed Sunday to Saturday week, the app computes:
-   - the average of that week's weigh-ins (only with 3 or more, otherwise it asks you to log more);
+   - the average of that week's weigh-ins (2 or more, otherwise it asks you to log more: daily is best, several times a week is fine);
    - waist, days on plan (kcal within ±150 of the target, protein at least 140 g and a day score of at least 70);
    - average steps, sleep, energy and hunger;
    - workout credit (full = 1, minimum = 0.7, walk = 0.4), pain flags and holiday status.
-3. **Review** (`weeklyReview`). It uses only weekly averages.
+3. **Weekly check-in** (`weeklyReview`). It compares each weekly average with the week before (week 1 compares with the start weight).
    - Weeks 1-2: report only.
-   - Inside the band: on track.
-   - Above the band 2 weeks in a row:
-     - With 85% adherence or more: steps +1,500 (capped at 12,000 total), else kcal -150 if the floor allows, else "hard limits reached, see a doctor".
-     - Between 70% and 85%: a mild message, no change.
-     - Under 70%: fixes, never cuts.
-   - Below the band, or losing more than 1.3 kg/week two weeks in a row: kcal +200 and a strength and energy check.
-   - Waist down 1 cm or more over 2 weeks while weight is flat or in the band: "recomposition is working".
-   - Holiday weeks pause the band check.
-   - The review always reports the rate (kg/week over the last 2 weeks), the distance from the band and a linear week-12 projection labeled as an estimate.
+   - Loss of 0.3-0.7 kg: on track, no change.
+   - Loss faster than 0.7 kg: suggest kcal +100 a day.
+   - Loss under 0.3 kg, or flat for one week: a gentle note, no change (one week is noise).
+   - Flat (under 0.1 kg of loss) for 2 weeks in a row:
+     - With 70% adherence or more: suggest kcal -100 a day, if the 1,700 kcal floor and the -250 limit allow, else "hard limits reached, see a doctor".
+     - Under 70%: fix the basics first, never cut.
+   - Waist down 1 cm or more over 2 weeks while the scale is slow: "recomposition is working".
+   - Holiday weeks pause the check.
+   - It always reports the weekly change, the rate and a linear week-12 projection labeled as an estimate.
 4. **Applying changes.** Every proposal is a card. Apply validates against the hard limits (`validateChange`), writes to `adjust` and logs to `planChanges`. Undo restores the previous value of the most recent change. A negative `kcalAdjust` appears on Today as "target X minus 150", with suggested removals (rather than silently shrinking portions).
 5. **Recovery and safety** (any day):
    - **Early deload:** 3 or more exercises with consecutive drops, average sleep under 6 h over 5 days, or energy 1-2 on 3 of the last 5 days. It is proposed as a 7-day deload with +150 kcal.
@@ -233,12 +248,13 @@ All of it is pure functions in `src/engine/`. Screens call `runReview(data, toda
    - **Red-flag symptoms:** stop the workout, seek care, and for chest pain or fainting, a prompt to call 123 (Egypt ambulance).
    - **BP:** 3 readings at or above 130/80 means "see a doctor soon"; 180/120 or more, or high with symptoms, means "urgent". A persistent yellow banner stays until a doctor checks your BP.
 6. **Progression** (`suggestProgression`), per exercise name, so a swapped exercise keeps its own history:
-   - All sets at the top of the range with RIR 2 or more: add load (+2.5 kg upper, +5 kg lower, plus "next pin" wording on machines).
-   - Any set below the range: hold the weight (reduce after twice in a row).
-   - Otherwise: +1 rep.
-   - Timed exercises: +5 s per session until the top of the range, then add a set (max 4).
+   - Every prescribed set logged, every rep at the top of the range, form marked clean: add load (+5 kg on squat, deadlift, Romanian deadlift and leg press; +2.5 kg on bench, overhead press, row, curls, pushdowns and lat pulldown).
+   - Missed reps or form not clean: repeat the same weight.
+   - Missed twice in a row: suggest a 10% deload (rounded to 2.5 kg) and build back up.
+   - Light squat and light bench follow 75% of your latest squat and bench weight.
+   - Timed exercises (plank): +5 s per session until the top of the range, then add a set (max 4).
    - Plus the stall rule and the first-time message.
-7. **Phase logic:** weeks 1-2 use `min(sets, 2)` at RIR 3-4. Deload weeks (6, 12 or triggered) use `ceil(sets / 2)`, about 90% loads and RIR 4.
+7. **Phase logic:** weeks 1-3 are the **learning phase** (banner: "Learning phase - light weights, focus on form"; full sets, light weights). Deload weeks (6, 12 or triggered) use `ceil(sets / 2)` and about 90% loads.
 
 ---
 
@@ -248,7 +264,9 @@ Everything numeric lives in `src/data/` as typed constants:
 
 - `meals.ts`: the meal library and emergency meals (kcal, protein, descriptions).
 - `plan.ts`: the default weekly plan, session days and treat day. `DAY_TOTAL_FIXTURES` are the expected totals that the tests check.
-- `sessions.ts`: exercises, sets, rep ranges, rest, RIR, cues and alternatives, plus the minimum version, warm-up and mobility.
+- `sessions.ts`: the three sessions, exercises, sets, rep ranges, rest, load increments, cues and alternatives, plus the minimum version, warm-up and mobility.
+- `tutorials.ts`: the **Watch tutorial** link for every exercise (see "Adding your tutorial links").
+- `foods.ts`: everyday Egyptian foods counted in palms, fists, cupped hands, thumbs, spoons, cups and pieces, plus the protein shake options.
 - `phases.ts`: the 12-week targets and hard limits.
 - `guides.ts`: ingredient Plan B, shopping, meal prep, eating out, supplements, the health checklist and the disclaimers.
 - `messages.ts`, `coachScripts.ts`, `badges.ts`: copy.
@@ -274,10 +292,10 @@ On first launch, the plan is copied into the user's data, so in-app edits never 
 
 - `dates`: Sunday to Saturday weeks, program weeks, DST-safe arithmetic.
 - `nutrition`: computed day totals match the table, PG only on gym days, eaten totals, shopping rescaling.
-- `targets`: `expected(t)` and the band for t = 1 to 12, step and cardio caps.
-- `rules`: every weight-band outcome, the 1,700 kcal floor, learning phase, too few weigh-ins, the waist message, metrics, holiday, pain referral, BP levels.
+- `targets`: the 0.3-0.7 kg/week target path for t = 1 to 12, step and cardio caps.
+- `rules`: every weekly check-in outcome (on track, too fast, slow, flat for 2 weeks, low adherence), the 1,700 kcal floor, learning phase, too few weigh-ins, the waist message, metrics, holiday, pain referral, BP levels.
 - `progression`: add load upper/lower, hold, reduce, +1 rep, first time, ignored sessions, timed, bodyweight, stall and swap, deload reference, PRs, the minimum version.
-- `phase`: ease-in, deload sets, triggered deload and its +150 kcal, sleep, energy and strength triggers.
+- `phase`: learning phase, deload sets, triggered deload and its +150 kcal, sleep, energy and strength triggers.
 - `scoring`: score parts, penalties, training credit, the on-plan rule, streaks with the grace day, levels.
 - `limits`: every hard limit, doctor clearance, joint-safety keywords (all built-in exercises pass), migrations, AI change parsing.
 - `notifications`: 14 days of reminders with that day's meal names, gym reminders only on gym days, no water nudge stacked on another reminder, snooze, disabled reminders.
