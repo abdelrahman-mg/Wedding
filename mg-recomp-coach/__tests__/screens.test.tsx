@@ -334,3 +334,17 @@ describe('Me tab', () => {
     expect(screen.getByText('Meal library')).toBeTruthy();
   });
 });
+
+describe('upgrade from an older version', () => {
+  test('a saved in-progress workout from the old program does not crash the Gym tab', async () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    const old: any = { ...defaultData(), schemaVersion: 3, profile: { ...defaultData().profile, onboarded: true, startDate: todayISO() } };
+    old.plan = { ...old.plan, sessionDays: { 0: null, 1: 'UPPER_A', 2: null, 3: 'LOWER_A', 4: null, 5: 'UPPER_B', 6: 'LOWER_B' } };
+    const active = { id: 'a', date: todayISO(), sessionKey: 'UPPER_A', kind: 'full', startedAt: 1, durationMin: 0, deload: false, sets: [{ exerciseId: 'chest_press_machine', nameUsed: 'x', setIndex: 0, weight: 30, reps: 10, rir: 2, done: true }], finished: false };
+    await (AsyncStorage.default ?? AsyncStorage).setItem('mg-recomp-coach', JSON.stringify({ state: { data: old, active }, version: 3 }));
+    await useApp.persist.rehydrate();
+    expect(useApp.getState().active).toBeNull();
+    await renderRouter(routes, { initialUrl: '/gym' });
+    expect(screen.getAllByText(/Start .* day/).length).toBeGreaterThan(0);
+  });
+});

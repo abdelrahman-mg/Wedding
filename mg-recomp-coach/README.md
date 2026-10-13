@@ -10,7 +10,7 @@ There is no backend, no login, no ads and no analytics. Everything is stored on 
 
 ## 1. Install the APK on your phone (the short version)
 
-**Ready-made APK:** download [`release/MG-Recomp-Coach-1.5.0.apk`](release/MG-Recomp-Coach-1.5.0.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
+**Ready-made APK:** download [`release/MG-Recomp-Coach-1.5.1.apk`](release/MG-Recomp-Coach-1.5.1.apk) on your phone and install it. It installs over any earlier version and keeps your data. To build your own instead, use one of the options below.
 
 **Option A: cloud build with EAS (easiest, no Android SDK needed)**
 

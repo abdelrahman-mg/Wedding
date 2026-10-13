@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { getFood } from '../data/foods';
 import type { Slot } from '../data/meals';
 import type { DayOfWeek } from '../data/plan';
-import type { SessionKey } from '../data/sessions';
+import { SESSIONS, type SessionKey } from '../data/sessions';
 import { defaultData, defaultPlan, migrate, SCHEMA_VERSION } from '../engine/defaults';
 import { weekStart } from '../engine/dates';
 import type { Proposal } from '../engine/rules';
@@ -134,6 +134,13 @@ function entryText(kind: EntryKind, value: number | null, extra?: { text?: strin
 }
 
 const emptyDay = (): DayLog => ({ meals: {}, water: 0 });
+
+/** A workout in progress saved by an older version can point at a session that no longer exists: drop it. */
+function validActive(a: any): WorkoutLog | null {
+  if (!a || typeof a !== 'object' || !SESSIONS[a.sessionKey as SessionKey] || !Array.isArray(a.sets)) return null;
+  const known = new Set(SESSIONS[a.sessionKey as SessionKey].exercises.map((e) => e.id));
+  return a.sets.every((x: any) => known.has(x.exerciseId)) ? a : null;
+}
 
 export const useApp = create<Store>()(
   persist(
@@ -414,7 +421,7 @@ export const useApp = create<Store>()(
       merge: (persisted: any, current) => ({
         ...current,
         data: migrate(persisted?.data ?? current.data),
-        active: persisted?.active ?? null,
+        active: validActive(persisted?.active),
       }),
       onRehydrateStorage: () => () => {
         useApp.setState({ hydrated: true });
